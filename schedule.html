@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Schedule - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Custom vertical timeline styling */
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+      margin: var(--space-20) 0;
+      border-left: 2px solid var(--border-color);
+    }
+    
+    .timeline-item {
+      position: relative;
+      margin-bottom: var(--space-24);
+      padding-bottom: var(--space-8);
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -37px;
+      top: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 3px solid var(--color-accent);
+      box-shadow: 0 0 0 3px var(--color-accent-light);
+    }
+
+    .timeline-time {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-accent);
+      display: inline-block;
+      margin-bottom: 2px;
+      background: var(--color-accent-light);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .timeline-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-top: 4px;
+    }
+
+    .timeline-venue {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout-container">
+    <!-- Header -->
+    <div id="app-header"></div>
+    
+    <!-- Sidebar -->
+    <div id="app-sidebar"></div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <div class="flex-row-between mb-24 flex-wrap" style="gap: var(--space-16);">
+        <div>
+          <h2>Event Schedule &amp; Calendar</h2>
+          <p class="text-muted text-sm mt-4">Browse interactive monthly calendars, daily sessions, and stage timelines</p>
+        </div>
+
+        <!-- View Switcher -->
+        <div class="flex-gap-8" style="background: var(--bg-surface); padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <button id="view-calendar-btn" class="btn btn-sm btn-primary">📅 Calendar View</button>
+          <button id="view-timeline-btn" class="btn btn-sm btn-secondary" style="border: none;">⏳ Timeline View</button>
+        </div>
+      </div>
+
+      <!-- ================= 1. CALENDAR VIEW SECTION ================= -->
+      <div id="calendar-view-section">
+        <div class="calendar-card mb-24">
+          <div class="calendar-header flex-row-between">
+            <h3 id="calendar-month-year" style="font-size: 20px;">September 2026</h3>
+            <div class="flex-gap-8">
+              <button id="prev-month-btn" class="btn-icon" title="Previous Month">&larr;</button>
+              <button id="today-btn" class="btn btn-secondary btn-sm">Today</button>
+              <button id="next-month-btn" class="btn-icon" title="Next Month">&rarr;</button>
+            </div>
+          </div>
+
+          <!-- Weekdays -->
+          <div class="calendar-weekdays">
+            <div>Sun</div>
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+          </div>
+
+          <!-- Calendar Grid -->
+          <div class="calendar-grid" id="calendar-grid">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Selected Day's Events Drawer -->
+        <div class="card" id="selected-day-events" style="display: none;">
+          <div class="flex-row-between mb-16">
+            <h3 id="selected-day-title">Events on this day</h3>
+            <span class="badge badge-primary" id="selected-day-count">0 Events</span>
+          </div>
+          <div id="selected-day-list" class="grid-2" style="gap: var(--space-16);">
+            <!-- Populated on date click -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 2. TIMELINE VIEW SECTION ================= -->
+      <div id="timeline-view-section" style="display: none;">
+        <div class="card mb-24">
+          <div style="max-width: 480px;">
+            <label for="schedule-event-select">Select an Event to View Agenda &amp; Timeline</label>
+            <select id="schedule-event-select">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Timeline Card -->
+        <div class="card" id="timeline-card" style="display: none;">
+          <div class="flex-row-between flex-wrap mb-16" style="border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-16); gap: var(--space-8);">
+            <div>
+              <h3 id="selected-event-title" style="font-size: 20px;">Event Title</h3>
+              <p class="text-sm text-muted mt-4" id="selected-event-info">Date | Venue</p>
+            </div>
+            <div class="flex-gap-8 items-center">
+              <span class="badge badge-primary" id="selected-event-category">Category</span>
+              <a id="selected-event-link" href="#" class="btn btn-secondary btn-sm">View Details</a>
+            </div>
+          </div>
+
+          <div class="timeline" id="timeline-container">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module">
+    import { getEvents, getEventById } from './js/data.js';
+
+    let events = [];
+    let currentMonthDate = new Date(2026, 8, 1); // Default to Sept 2026 (where seeded events are)
+    let selectedDateStr = null;
+
+    function init() {
+      events = getEvents();
+
+      // View Switcher Handlers
+      const calBtn = document.getElementById('view-calendar-btn');
+      const timeBtn = document.getElementById('view-timeline-btn');
+      const calSection = document.getElementById('calendar-view-section');
+      const timeSection = document.getElementById('timeline-view-section');
+
+      calBtn.addEventListener('click', () => {
+        calBtn.className = 'btn btn-sm btn-primary';
+        timeBtn.className = 'btn btn-sm btn-secondary';
+        timeBtn.style.border = 'none';
+        calSection.style.display = 'block';
+        timeSection.style.display = 'none';
+      });
+
+      timeBtn.addEventListener('click', () => {
+        timeBtn.className = 'btn btn-sm btn-primary';
+        calBtn.className = 'btn btn-sm btn-secondary';
+        calBtn.style.border = 'none';
+        calSection.style.display = 'none';
+        timeSection.style.display = 'block';
+      });
+
+      // Calendar Navigation Handlers
+      document.getElementById('prev-month-btn').addEventListener('click', () => {
+        currentMonthDate.setMonth(currentMonthDate.getMonth() - 1);
+        renderCalendar();
+      });
+
+      document.getElementById('next-month-btn').addEventListener('click', () => {
+        currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
+        renderCalendar();
+      });
+
+      document.getElementById('today-btn').addEventListener('click', () => {
+        currentMonthDate = new Date(2026, 8, 9); // current app reference date
+        renderCalendar();
+      });
+
+      // Populate Timeline Dropdown
+      const select = document.getElementById('schedule-event-select');
+      select.innerHTML = '<option value="">-- Choose an Event --</option>';
+      events.forEach(e => {
+        const option = document.createElement('option');
+        option.value = e.id;
+        option.textContent = `${e.title} (${e.date})`;
+        select.appendChild(option);
+      });
+
+      select.addEventListener('change', (e) => {
+        const id = e.target.value;
+        if (id) {
+          renderTimeline(id);
+        } else {
+          document.getElementById('timeline-card').style.display = 'none';
+        }
+      });
+
+      // Check query string
+      const params = new URLSearchParams(window.location.search);
+      const queryId = params.get('eventId');
+      if (queryId) {
+        timeBtn.click();
+        select.value = queryId;
+        renderTimeline(queryId);
+      }
+
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const year = currentMonthDate.getFullYear();
+      const month = currentMonthDate.getMonth();
+
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      document.getElementById('calendar-month-year').textContent = `${monthNames[month]} ${year}`;
+
+      const grid = document.getElementById('calendar-grid');
+      grid.innerHTML = '';
+
+      const firstDayIndex = new Date(year, month, 1).getDay();
+      const totalDays = new Date(year, month + 1, 0).getDate();
+      const prevMonthDays = new Date(year, month, 0).getDate();
+
+      const todayStr = '2026-09-09';
+
+      // 1. Previous Month Spillover Days
+      for (let i = firstDayIndex - 1; i >= 0; i--) {
+        const dayNum = prevMonthDays - i;
+        const cell = document.createElement('div');
+        cell.className = 'calendar-day other-month';
+        cell.innerHTML = `<span class="day-number text-muted">${dayNum}</span>`;
+        grid.appendChild(cell);
+      }
+
+      // 2. Current Month Days
+      for (let day = 1; day <= totalDays; day++) {
+        const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayEvents = events.filter(e => e.date === dayStr);
+
+        const cell = document.createElement('div');
+        cell.className = 'calendar-day';
+        if (dayStr === todayStr) cell.classList.add('today');
+        if (dayStr === selectedDateStr) cell.classList.add('selected');
+
+        let eventsHtml = '';
+        if (dayEvents.length > 0) {
+          eventsHtml = '<div class="day-events">';
+          dayEvents.slice(0, 2).forEach(ev => {
+            const catClass = ev.category === 'Technical' ? 'dot-technical' : (ev.category === 'Cultural' ? 'dot-cultural' : 'dot-sports');
+            eventsHtml += `<div class="event-dot-item ${catClass}">${ev.title}</div>`;
+          });
+          if (dayEvents.length > 2) {
+            eventsHtml += `<div class="event-dot-item" style="background: var(--bg-surface); color: var(--text-muted);">+${dayEvents.length - 2} more</div>`;
+          }
+          eventsHtml += '</div>';
+        }
+
+        cell.innerHTML = `
+          <span class="day-number">${day}</span>
+          ${eventsHtml}
+        `;
+
+        cell.addEventListener('click', () => {
+          selectedDateStr = dayStr;
+          document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+          cell.classList.add('selected');
+          renderSelectedDayEvents(dayStr, dayEvents);
+        });
+
+        grid.appendChild(cell);
+      }
+
+      // Automatically select Sept 10 on first load
+      if (!selectedDateStr) {
+        selectedDateStr = '2026-09-10';
+        const day10Events = events.filter(e => e.date === '2026-09-10');
+        renderSelectedDayEvents('2026-09-10', day10Events);
+      }
+    }
+
+    function renderSelectedDayEvents(dateStr, dayEvents) {
+      const container = document.getElementById('selected-day-events');
+      const list = document.getElementById('selected-day-list');
+      const title = document.getElementById('selected-day-title');
+      const countBadge = document.getElementById('selected-day-count');
+
+      const dateObj = new Date(dateStr + 'T00:00:00');
+      const formattedDate = dateObj.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+
+      title.textContent = `Schedule for ${formattedDate}`;
+      countBadge.textContent = `${dayEvents.length} Event${dayEvents.length === 1 ? '' : 's'}`;
+      list.innerHTML = '';
+
+      if (dayEvents.length === 0) {
+        list.innerHTML = `<p class="text-muted text-sm" style="grid-column: span 2;">No campus events scheduled on this date.</p>`;
+      } else {
+        dayEvents.forEach(ev => {
+          const cardHtml = `
+            <div class="card" style="padding: var(--space-16); background: var(--bg-surface);">
+              <div class="flex-row-between mb-8">
+                <span class="badge badge-primary text-xs">${ev.category}</span>
+                <span class="badge badge-default text-xs">🕒 ${ev.time}</span>
+              </div>
+              <h4 style="font-size: 16px;">${ev.title}</h4>
+              <p class="text-xs text-muted mt-4">📍 ${ev.venue}</p>
+              <div class="flex-gap-8 mt-12">
+                <a href="event-details.html?id=${ev.id}" class="btn btn-primary btn-sm" style="flex: 1;">View Details</a>
+                <button class="btn btn-secondary btn-sm jump-timeline-btn" data-event-id="${ev.id}">View Agenda</button>
+              </div>
+            </div>
+          `;
+          list.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+        // Hook jump timeline buttons
+        document.querySelectorAll('.jump-timeline-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const evId = btn.dataset.eventId;
+            document.getElementById('view-timeline-btn').click();
+            const select = document.getElementById('schedule-event-select');
+            select.value = evId;
+            renderTimeline(evId);
+          });
+        });
+      }
+
+      container.style.display = 'block';
+    }
+
+    function renderTimeline(eventId) {
+      const event = getEventById(eventId);
+      if (!event) return;
+
+      document.getElementById('selected-event-title').textContent = event.title;
+      
+      const dateStr = new Date(event.date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      document.getElementById('selected-event-info').textContent = `📅 ${dateStr} • ⏰ Starting at ${event.time} • 📍 ${event.venue}`;
+      document.getElementById('selected-event-category').textContent = event.category;
+      document.getElementById('selected-event-link').href = `event-details.html?id=${event.id}`;
+
+      const timelineContainer = document.getElementById('timeline-container');
+      timelineContainer.innerHTML = '';
+
+      const sessions = generateSessions(event);
+      
+      sessions.forEach(session => {
+        const item = `
+          <div class="timeline-item">
+            <span class="timeline-time">${session.time}</span>
+            <div class="timeline-title">${session.title}</div>
+            <p class="text-sm text-muted mt-4" style="line-height: 1.4;">${session.desc}</p>
+            <div class="timeline-venue">📍 <span>${session.venue}</span></div>
+          </div>
+        `;
+        timelineContainer.insertAdjacentHTML('beforeend', item);
+      });
+
+      document.getElementById('timeline-card').style.display = 'block';
+    }
+
+    function generateSessions(event) {
+      const baseHour = parseInt(event.time.split(':')[0]) || 9;
+      const baseMin = event.time.split(':')[1] || '00';
+      
+      const formatTime = (hourOffset) => {
+        let hr = baseHour + hourOffset;
+        let period = 'AM';
+        if (hr >= 12) {
+          period = 'PM';
+          if (hr > 12) hr -= 12;
+        } else if (hr === 0) {
+          hr = 12;
+        }
+        return `${String(hr).padStart(2, '0')}:${baseMin} ${period}`;
+      };
+
+      if (event.category === 'Technical') {
+        return [
+          {
+            time: formatTime(0),
+            title: "Participant Check-in & Pass Verification",
+            desc: "Register at the front foyer, verify your QR/code, and collect digital badges and swag kits.",
+            venue: "Entrance Foyer"
+          },
+          {
+            time: formatTime(1),
+            title: "Opening Ceremony & Problem Briefing",
+            desc: "Opening keynote by the chief guest followed by instructions on guidelines, rules, and problem tracks.",
+            venue: event.venue
+          },
+          {
+            time: formatTime(2),
+            title: "Lab Setup & Initial Pitch",
+            desc: "Configure machines, clone starter repositories, and pitch team concepts to industry mentors.",
+            venue: "Computer Labs 1 & 2"
+          },
+          {
+            time: formatTime(4),
+            title: "Mid-Day Evaluation & Lunch",
+            desc: "Submit initial architecture drafts and take a lunch break with fellow innovators.",
+            venue: "Campus Cafeteria"
+          },
+          {
+            time: formatTime(6),
+            title: "Deep Hacking / Prototyping Block",
+            desc: "Deep development and prototype coding session. Technical mentors provide assistance.",
+            venue: "Computer Labs 1 & 2"
+          },
+          {
+            time: formatTime(8),
+            title: "Live Demonstrations & Award Ceremony",
+            desc: "Top shortlisted teams present live demos to the jury. Winners announced with certificates.",
+            venue: event.venue
+          }
+        ];
+      } else if (event.category === 'Cultural') {
+        return [
+          {
+            time: formatTime(0),
+            title: "Seating Open & Sound Checks",
+            desc: "Doors open for spectators. Performers finalize sound stages and adjust lighting.",
+            venue: event.venue
+          },
+          {
+            time: formatTime(1),
+            title: "Inaugural Performance & Traditional Lamp",
+            desc: "Opening traditional dance and lighting of the lamp ceremony by department heads.",
+            venue: event.venue
+          },
+          {
+            time: formatTime(2),
+            title: "Battle of the Bands / Acoustic Acts",
+            desc: "Music ensembles and live instrumental performances.",
+            venue: event.venue
+          },
+          {
+            time: formatTime(4),
+            title: "Snack Break & Art Exhibitions",
+            desc: "Exhibition stalls open outside the theatre. Refreshments served.",
+            venue: "Open Lawn Area"
+          },
+          {
+            time: formatTime(5),
+            title: "Theatricals & Choreography Segment",
+            desc: "Dramatic plays, mono-acts, and group dance routines.",
+            venue: event.venue
+          },
+          {
+            time: formatTime(7),
+            title: "Valedictory & Closing Jams",
+            desc: "DJ tracks, judges' feedback announcements, and trophy distributions.",
+            venue: event.venue
+          }
+        ];
+      } else {
+        return [
+          {
+            time: formatTime(0),
+            title: "Athlete Sign-in & Warmups",
+            desc: "Teams check-in with referee sheets, verify equipment, and perform warmups on court.",
+            venue: event.venue
+          },
+          {
+            time: formatTime(1),
+            title: "Knockout Round 1 Matches",
+            desc: "First sets of matches running concurrently across fields/courts.",
+            venue: "Play Fields / Courts"
+          },
+          {
+            time: formatTime(3),
+            title: "Semifinals & Tactics Briefing",
+            desc: "Top advancing players/teams clash. Sports drinks and hydration provided.",
+            venue: "Main Court"
+          },
+          {
+            time: formatTime(5),
+            title: "Lunch & Rest Break",
+            desc: "Re-energize for finals. Open court drills.",
+            venue: "Athletics Cafeteria"
+          },
+          {
+            time: formatTime(6),
+            title: "Grand Finals Clash",
+            desc: "Final championship showdown match under referee supervision.",
+            venue: "Main Court"
+          },
+          {
+            time: formatTime(7),
+            title: "Prize Distribution Ceremony",
+            desc: "Medals, runner-up badges, and championship cup distribution.",
+            venue: event.venue
+          }
+        ];
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

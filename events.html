@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Explore Events - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="layout-container">
+    <!-- Header -->
+    <div id="app-header"></div>
+    
+    <!-- Sidebar -->
+    <div id="app-sidebar"></div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <div class="flex-row-between mb-24 flex-wrap" style="gap: var(--space-16);">
+        <div>
+          <h2>Explore Events</h2>
+          <p class="text-muted text-sm mt-4">Discover, register, and bookmark college workshops, cultural fests, and sports meets</p>
+        </div>
+      </div>
+
+      <!-- Filters & Category Pills -->
+      <div class="card mb-24" style="padding: var(--space-20); display: flex; flex-direction: column; gap: var(--space-16);">
+        
+        <!-- Category Pills -->
+        <div class="pill-group" id="category-pills">
+          <button class="pill-btn active" data-category="All">All Events <span id="count-all">(0)</span></button>
+          <button class="pill-btn" data-category="Technical">💻 Technical <span id="count-technical">(0)</span></button>
+          <button class="pill-btn" data-category="Cultural">🎭 Cultural <span id="count-cultural">(0)</span></button>
+          <button class="pill-btn" data-category="Sports">🏆 Sports <span id="count-sports">(0)</span></button>
+          <button class="pill-btn" data-category="Bookmarked">❤️ Saved</button>
+        </div>
+
+        <!-- Search and Dropdowns Filter Grid -->
+        <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr; gap: var(--space-12);">
+          <div class="input-with-icon">
+            <span class="input-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Search by event title, venue, or keyword...">
+          </div>
+          <div>
+            <select id="date-filter">
+              <option value="All">All Timeframes</option>
+              <option value="Upcoming">Upcoming Only</option>
+              <option value="Past">Past Events</option>
+            </select>
+          </div>
+          <div>
+            <select id="sort-select">
+              <option value="date-asc">Date: Soonest First</option>
+              <option value="date-desc">Date: Latest First</option>
+              <option value="seats">Available Seats</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events Grid -->
+      <div id="events-grid" class="grid-3">
+        <!-- Rendered dynamically -->
+      </div>
+      
+      <!-- Empty State -->
+      <div id="no-events" style="display: none; text-align: center; padding: var(--space-48);" class="card">
+        <div style="font-size: 48px; margin-bottom: var(--space-12);">🔍</div>
+        <h3>No events match your criteria</h3>
+        <p class="text-muted text-sm mt-4">Try clearing filters or changing your search terms.</p>
+        <button id="reset-filters-btn" class="btn btn-secondary btn-sm mt-16">Reset Filters</button>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module">
+    import { getEvents, isBookmarked, toggleBookmark, downloadICS } from './js/data.js';
+    import { showToast } from './js/layout.js';
+
+    let allEvents = [];
+    let selectedCategory = 'All';
+
+    function init() {
+      allEvents = getEvents();
+      updateCategoryCounts();
+      renderEvents();
+
+      // Attach Event Listeners
+      document.getElementById('search-input').addEventListener('input', renderEvents);
+      document.getElementById('date-filter').addEventListener('change', renderEvents);
+      document.getElementById('sort-select').addEventListener('change', renderEvents);
+      document.getElementById('reset-filters-btn').addEventListener('click', () => {
+        document.getElementById('search-input').value = '';
+        document.getElementById('date-filter').value = 'All';
+        document.getElementById('sort-select').value = 'date-asc';
+        selectedCategory = 'All';
+        updateActivePill();
+        renderEvents();
+      });
+
+      // Category Pills Listeners
+      const pills = document.querySelectorAll('#category-pills .pill-btn');
+      pills.forEach(pill => {
+        pill.addEventListener('click', (e) => {
+          selectedCategory = pill.dataset.category;
+          updateActivePill();
+          renderEvents();
+        });
+      });
+    }
+
+    function updateActivePill() {
+      const pills = document.querySelectorAll('#category-pills .pill-btn');
+      pills.forEach(pill => {
+        if (pill.dataset.category === selectedCategory) {
+          pill.classList.add('active');
+        } else {
+          pill.classList.remove('active');
+        }
+      });
+    }
+
+    function updateCategoryCounts() {
+      const techCount = allEvents.filter(e => e.category === 'Technical').length;
+      const cultCount = allEvents.filter(e => e.category === 'Cultural').length;
+      const sportsCount = allEvents.filter(e => e.category === 'Sports').length;
+
+      document.getElementById('count-all').textContent = `(${allEvents.length})`;
+      document.getElementById('count-technical').textContent = `(${techCount})`;
+      document.getElementById('count-cultural').textContent = `(${cultCount})`;
+      document.getElementById('count-sports').textContent = `(${sportsCount})`;
+    }
+
+    function renderEvents() {
+      const searchVal = document.getElementById('search-input').value.toLowerCase();
+      const dateVal = document.getElementById('date-filter').value;
+      const sortVal = document.getElementById('sort-select').value;
+      
+      const grid = document.getElementById('events-grid');
+      const noEventsEl = document.getElementById('no-events');
+      
+      const now = new Date();
+
+      // Filter
+      let filtered = allEvents.filter(event => {
+        const matchesSearch = event.title.toLowerCase().includes(searchVal) || 
+                              event.description.toLowerCase().includes(searchVal) ||
+                              event.venue.toLowerCase().includes(searchVal);
+        
+        let matchesCategory = true;
+        if (selectedCategory === 'Bookmarked') {
+          matchesCategory = isBookmarked(event.id);
+        } else if (selectedCategory !== 'All') {
+          matchesCategory = event.category === selectedCategory;
+        }
+        
+        const eventDate = new Date(event.date + 'T' + event.time);
+        let matchesDate = true;
+        if (dateVal === 'Upcoming') {
+          matchesDate = eventDate >= now;
+        } else if (dateVal === 'Past') {
+          matchesDate = eventDate < now;
+        }
+
+        return matchesSearch && matchesCategory && matchesDate;
+      });
+
+      // Sort
+      filtered.sort((a, b) => {
+        if (sortVal === 'date-asc') {
+          return new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time);
+        } else if (sortVal === 'date-desc') {
+          return new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time);
+        } else if (sortVal === 'seats') {
+          return b.availableSeats - a.availableSeats;
+        }
+        return 0;
+      });
+
+      // Render
+      grid.innerHTML = '';
+      if (filtered.length === 0) {
+        grid.style.display = 'none';
+        noEventsEl.style.display = 'block';
+        return;
+      }
+
+      grid.style.display = 'grid';
+      noEventsEl.style.display = 'none';
+
+      filtered.forEach(event => {
+        const isPast = new Date(event.date + 'T' + event.time) < now;
+        const bookmarked = isBookmarked(event.id);
+        
+        let seatBadgeClass = 'badge-success';
+        let seatText = `${event.availableSeats} seats left`;
+        if (isPast) {
+          seatBadgeClass = 'badge-default';
+          seatText = 'Finished';
+        } else if (event.availableSeats === 0) {
+          seatBadgeClass = 'badge-danger';
+          seatText = 'Sold Out';
+        } else if (event.availableSeats <= event.maxParticipants * 0.15) {
+          seatBadgeClass = 'badge-warning';
+          seatText = `Only ${event.availableSeats} left!`;
+        }
+
+        const dateStr = new Date(event.date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+
+        const cardHtml = `
+          <div class="card card-hover" style="overflow: hidden; padding: 0; display: flex; flex-direction: column;">
+            <div style="position: relative;">
+              <img src="${event.imageUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800'}" 
+                   alt="${event.title}" 
+                   loading="lazy"
+                   style="width: 100%; height: 170px; object-fit: cover; display: block; border-bottom: 1px solid var(--border-color);">
+              <button class="btn-bookmark ${bookmarked ? 'bookmarked' : ''}" data-event-id="${event.id}" title="${bookmarked ? 'Remove from Saved' : 'Save Event'}">
+                ${bookmarked ? '❤️' : '🤍'}
+              </button>
+            </div>
+            
+            <div style="padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-8); flex-grow: 1;">
+              <div class="flex-row-between">
+                <span class="badge badge-primary">${event.category}</span>
+                <span class="badge ${seatBadgeClass}">${seatText}</span>
+              </div>
+              <h3 style="font-size: 18px; margin-top: 4px;">${event.title}</h3>
+              <p class="text-sm text-muted" style="flex-grow: 1; line-height: 1.4;">
+                ${event.description.length > 95 ? event.description.substring(0, 92) + '...' : event.description}
+              </p>
+              
+              <div style="border-top: 1px solid var(--border-color); padding-top: var(--space-12); display: flex; flex-direction: column; gap: 6px;" class="text-xs text-muted">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span>📅</span> <strong>${dateStr}</strong> at ${event.time}
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span>📍</span> <span>${event.venue}</span>
+                </div>
+              </div>
+
+              <div class="flex-gap-8 mt-8">
+                <a href="event-details.html?id=${event.id}" class="btn btn-primary btn-sm" style="flex: 1;">View Details</a>
+                <button class="btn-icon ics-btn" data-event-id="${event.id}" title="Add to Calendar (.ics)">
+                  📅
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        grid.insertAdjacentHTML('beforeend', cardHtml);
+      });
+
+      // Hook bookmark buttons
+      document.querySelectorAll('.btn-bookmark').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = btn.dataset.eventId;
+          const isSaved = toggleBookmark(id);
+          btn.innerHTML = isSaved ? '❤️' : '🤍';
+          btn.classList.toggle('bookmarked', isSaved);
+          showToast(isSaved ? 'Saved to Bookmarks' : 'Removed from Bookmarks', 'success', 2000);
+          if (selectedCategory === 'Bookmarked') {
+            renderEvents();
+          }
+        });
+      });
+
+      // Hook ICS export buttons
+      document.querySelectorAll('.ics-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = btn.dataset.eventId;
+          const ev = allEvents.find(x => x.id === id);
+          if (ev) {
+            downloadICS(ev);
+            showToast(`Calendar invite downloaded for ${ev.title}`, 'info', 2500);
+          }
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

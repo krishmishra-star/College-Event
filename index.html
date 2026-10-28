@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusFlow - College Event Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background-color: var(--bg-page); text-align: center; padding: var(--space-24);">
+    <h1 style="color: var(--color-accent); font-weight: 700; margin-bottom: var(--space-16);">CampusFlow</h1>
+    <p class="text-muted" style="margin-bottom: var(--space-24);">Redirecting to your space...</p>
+    <div style="width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--color-accent); border-radius: 50%; animation: spin 1s infinite linear;"></div>
+  </div>
+
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module">
+    import { getCurrentUser } from './js/data.js';
+    import { redirectUser } from './js/layout.js';
+    
+    // Safety check if DOMContentLoaded was missed or delayed
+    const user = getCurrentUser();
+    if (user) {
+      redirectUser(user.role);
+    } else {
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>

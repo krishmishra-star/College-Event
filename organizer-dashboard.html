@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organizer Panel - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="layout-container">
+    <!-- Header -->
+    <div id="app-header"></div>
+    
+    <!-- Sidebar -->
+    <div id="app-sidebar"></div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <div class="flex-row-between mb-24 flex-wrap" style="gap: var(--space-16);">
+        <div>
+          <h2>Organizer Command Center</h2>
+          <p class="text-muted text-sm mt-4">Manage events, track live registration stats, publish announcements, and export attendee lists</p>
+        </div>
+        <button id="add-event-btn" class="btn btn-primary">+ Create New Event</button>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid-4 mb-24">
+        <div class="stat-card">
+          <div class="stat-icon primary">📅</div>
+          <div class="stat-info">
+            <span class="stat-val" id="stat-total-events">0</span>
+            <span class="stat-label">Total Events</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon info">👥</div>
+          <div class="stat-info">
+            <span class="stat-val" id="stat-total-regs">0</span>
+            <span class="stat-label">Total Registrations</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon success">✅</div>
+          <div class="stat-info">
+            <span class="stat-val" id="stat-attendance-rate">0%</span>
+            <span class="stat-label">Attendance Rate</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon warning">⭐</div>
+          <div class="stat-info">
+            <span class="stat-val" id="stat-avg-rating">5.0</span>
+            <span class="stat-label">Avg Student Rating</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events Management Table Card -->
+      <div class="card mb-24">
+        <div class="flex-row-between flex-wrap mb-16" style="gap: var(--space-12);">
+          <h3>Campus Events Directory</h3>
+          <div class="input-with-icon" style="max-width: 320px; width: 100%;">
+            <span class="input-icon">🔍</span>
+            <input type="text" id="organizer-search-input" placeholder="Filter events by title or category...">
+          </div>
+        </div>
+
+        <div class="responsive-table-wrap table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Event Title</th>
+                <th>Category</th>
+                <th>Schedule</th>
+                <th>Seats (Left/Cap)</th>
+                <th>Certificates</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="events-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Feedback Stats Section -->
+      <div class="card">
+        <div class="flex-row-between mb-16">
+          <h3>Student Feedback &amp; Ratings</h3>
+          <span class="badge badge-info text-xs">Evaluations</span>
+        </div>
+        <div class="grid-3" id="feedback-metrics-grid">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- ================= MODALS ================= -->
+
+      <!-- 1. Create/Edit Event Modal -->
+      <div id="event-modal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 680px;">
+          <div class="flex-row-between mb-16">
+            <h3 id="modal-title">Create New Event</h3>
+            <button id="close-event-modal" class="btn-icon" style="border: none;">✕</button>
+          </div>
+          <form id="event-form" class="grid-2" style="gap: var(--space-16);">
+            <input type="hidden" id="event-id-field">
+            
+            <div style="grid-column: span 2;">
+              <label for="event-title">Event Title</label>
+              <input type="text" id="event-title" required placeholder="Annual Hackathon 2026">
+            </div>
+
+            <div style="grid-column: span 2;">
+              <label for="event-desc">Description</label>
+              <textarea id="event-desc" required rows="3" placeholder="Tell participants what the event is about..."></textarea>
+            </div>
+
+            <div>
+              <label for="event-category">Category</label>
+              <select id="event-category" required>
+                <option value="Technical">Technical</option>
+                <option value="Cultural">Cultural</option>
+                <option value="Sports">Sports</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="event-max">Max Capacity (Seats)</label>
+              <input type="number" id="event-max" required min="1" placeholder="100">
+            </div>
+
+            <div>
+              <label for="event-date">Event Date</label>
+              <input type="date" id="event-date" required>
+            </div>
+
+            <div>
+              <label for="event-time">Event Start Time</label>
+              <input type="time" id="event-time" required>
+            </div>
+
+            <div>
+              <label for="event-venue">Venue / Room</label>
+              <input type="text" id="event-venue" required placeholder="Seminar Hall A">
+            </div>
+
+            <div>
+              <label for="event-deadline">Registration Deadline</label>
+              <input type="date" id="event-deadline" required>
+            </div>
+
+            <div style="grid-column: span 2;">
+              <label for="event-rules">Rules &amp; Guidelines</label>
+              <textarea id="event-rules" rows="3" placeholder="Enter instructions, requirements, eligibility..."></textarea>
+            </div>
+
+            <div>
+              <label for="event-contact">Organizer Contact Email</label>
+              <input type="email" id="event-contact" required placeholder="organizer@campusflow.edu">
+            </div>
+
+            <div>
+              <label for="event-image">Cover Image URL</label>
+              <input type="url" id="event-image" placeholder="https://images.unsplash.com/photo-...">
+            </div>
+
+            <div style="grid-column: span 2; display: flex; align-items: center; gap: var(--space-8);">
+              <input type="checkbox" id="event-certs" style="width: auto;">
+              <label for="event-certs" style="margin-bottom: 0;" class="cursor-pointer">Enable Printable Participation Certificates</label>
+            </div>
+
+            <div style="grid-column: span 2; margin-top: var(--space-8);">
+              <button type="submit" class="btn btn-primary w-full">Save &amp; Publish Event</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 2. View Registrations & CSV Modal -->
+      <div id="regs-modal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 760px;">
+          <div class="flex-row-between mb-16 flex-wrap" style="gap: var(--space-12);">
+            <div>
+              <h3 id="regs-title">Event Registrations</h3>
+              <p class="text-xs text-muted" id="regs-subtitle">List of enrolled student tickets</p>
+            </div>
+            <div class="flex-gap-8 items-center">
+              <button id="export-csv-btn" class="btn btn-success btn-sm">📥 Export to CSV</button>
+              <button id="close-regs-modal" class="btn-icon" style="border: none;">✕</button>
+            </div>
+          </div>
+          <div class="responsive-table-wrap table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Participant</th>
+                  <th>Email</th>
+                  <th>Ticket Code</th>
+                  <th>Enrolled Date</th>
+                  <th>Attendance</th>
+                </tr>
+              </thead>
+              <tbody id="regs-table-body">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Publish Announcement Modal -->
+      <div id="ann-modal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 480px;">
+          <div class="flex-row-between mb-16">
+            <h3>Publish Event Bulletin</h3>
+            <button id="close-ann-modal" class="btn-icon" style="border: none;">✕</button>
+          </div>
+          <form id="ann-form" style="display: flex; flex-direction: column; gap: var(--space-16);">
+            <input type="hidden" id="ann-event-id">
+            <div>
+              <label for="ann-message">Bulletin Message</label>
+              <textarea id="ann-message" required rows="4" placeholder="Type schedule changes, room updates, or special instructions here... Registered students will receive it immediately."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-full">Broadcast Bulletin</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 4. Suggestions Modal -->
+      <div id="sugg-modal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 520px;">
+          <div class="flex-row-between mb-16">
+            <h3>Student Feedback &amp; Suggestions</h3>
+            <button id="close-sugg-modal" class="btn-icon" style="border: none;">✕</button>
+          </div>
+          <div id="suggestions-list" style="display: flex; flex-direction: column; gap: var(--space-12);">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module">
+    import { 
+      getCurrentUser, 
+      getEvents, 
+      createEvent, 
+      updateEvent, 
+      deleteEvent, 
+      getRegistrations,
+      getRegistrationsByEvent, 
+      getUsers, 
+      addAnnouncement, 
+      getFeedback,
+      getFeedbackByEvent,
+      exportRegistrationsToCSV
+    } from './js/data.js';
+    import { showToast, showConfirm } from './js/layout.js';
+
+    let currentUser = null;
+    let activeModalEventId = null;
+
+    function init() {
+      currentUser = getCurrentUser();
+      if (!currentUser || currentUser.role !== 'organizer') {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      renderDashboard();
+
+      // Hook Search
+      document.getElementById('organizer-search-input').addEventListener('input', renderEventsTable);
+
+      // Hook Modal Closers
+      document.getElementById('add-event-btn').addEventListener('click', openCreateModal);
+      document.getElementById('close-event-modal').addEventListener('click', () => toggleModal('event-modal', false));
+      document.getElementById('close-regs-modal').addEventListener('click', () => toggleModal('regs-modal', false));
+      document.getElementById('close-ann-modal').addEventListener('click', () => toggleModal('ann-modal', false));
+      document.getElementById('close-sugg-modal').addEventListener('click', () => toggleModal('sugg-modal', false));
+
+      document.getElementById('event-form').addEventListener('submit', handleEventSubmit);
+      document.getElementById('ann-form').addEventListener('submit', handleAnnSubmit);
+      document.getElementById('export-csv-btn').addEventListener('click', () => {
+        if (activeModalEventId) {
+          exportRegistrationsToCSV(activeModalEventId);
+          showToast('Attendee list exported to CSV', 'success', 2500);
+        }
+      });
+    }
+
+    function toggleModal(id, show) {
+      const modal = document.getElementById(id);
+      if (show) modal.classList.add('active');
+      else modal.classList.remove('active');
+    }
+
+    function renderDashboard() {
+      renderKPIs();
+      renderEventsTable();
+      renderFeedbackMetrics();
+    }
+
+    function renderKPIs() {
+      const events = getEvents();
+      const allRegs = getRegistrations().filter(r => r.status === 'registered');
+      const attendedRegs = allRegs.filter(r => r.checkedIn);
+      const allFeedback = getFeedback();
+
+      document.getElementById('stat-total-events').textContent = events.length;
+      document.getElementById('stat-total-regs').textContent = allRegs.length;
+
+      const rate = allRegs.length > 0 ? Math.round((attendedRegs.length / allRegs.length) * 100) : 0;
+      document.getElementById('stat-attendance-rate').textContent = `${rate}%`;
+
+      const avgRating = allFeedback.length > 0 
+        ? (allFeedback.reduce((a, f) => a + f.rating, 0) / allFeedback.length).toFixed(1)
+        : '5.0';
+      document.getElementById('stat-avg-rating').textContent = `${avgRating} ★`;
+    }
+
+    function renderEventsTable() {
+      const tbody = document.getElementById('events-table-body');
+      tbody.innerHTML = '';
+      const searchVal = document.getElementById('organizer-search-input').value.toLowerCase();
+      const events = getEvents();
+
+      const filtered = events.filter(e => 
+        e.title.toLowerCase().includes(searchVal) || 
+        e.category.toLowerCase().includes(searchVal) ||
+        e.venue.toLowerCase().includes(searchVal)
+      );
+
+      filtered.forEach(event => {
+        const certBadge = event.certificatesAvailable 
+          ? `<span class="badge badge-success cert-toggle cursor-pointer" data-id="${event.id}">✓ Enabled</span>`
+          : `<span class="badge badge-default cert-toggle cursor-pointer" data-id="${event.id}">✕ Disabled</span>`;
+
+        const row = `
+          <tr>
+            <td data-label="Event Title"><strong>${event.title}</strong></td>
+            <td data-label="Category"><span class="badge badge-primary text-xs">${event.category}</span></td>
+            <td data-label="Schedule" class="text-xs">📅 ${event.date} • ${event.time}</td>
+            <td data-label="Seats" class="text-xs font-semibold">${event.availableSeats} left / ${event.maxParticipants} max</td>
+            <td data-label="Certificates">${certBadge}</td>
+            <td data-label="Actions">
+              <div class="flex-gap-8 flex-wrap">
+                <button class="btn btn-secondary btn-sm regs-btn" data-id="${event.id}" title="View Attendees">👥 Attendees</button>
+                <button class="btn btn-secondary btn-sm ann-btn" data-id="${event.id}" title="Broadcast Bulletin">📢 Announce</button>
+                <button class="btn btn-secondary btn-sm edit-btn" data-id="${event.id}" title="Edit Event">✏️ Edit</button>
+                <button class="btn btn-danger btn-sm delete-btn" data-id="${event.id}" data-title="${event.title}" title="Delete Event">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted" style="padding: var(--space-32);">No events matching your search criteria.</td></tr>`;
+      }
+
+      // Hook table action clicks
+      document.querySelectorAll('.regs-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => openRegistrationsModal(btn.dataset.id));
+      });
+      document.querySelectorAll('.ann-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => openAnnouncementModal(btn.dataset.id));
+      });
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => openEditModal(btn.dataset.id));
+      });
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = btn.dataset.id;
+          const title = btn.dataset.title;
+          showConfirm(
+            'Delete Event',
+            `Are you sure you want to delete "${title}"? This permanently removes all student tickets, announcements, and feedback.`,
+            () => {
+              deleteEvent(id);
+              showToast('Event deleted successfully', 'warning', 2500);
+              renderDashboard();
+            },
+            'Yes, Delete',
+            'Cancel',
+            true
+          );
+        });
+      });
+      document.querySelectorAll('.cert-toggle').forEach(badge => {
+        badge.addEventListener('click', (e) => {
+          const id = badge.dataset.id;
+          const currentEvents = getEvents();
+          const target = currentEvents.find(ev => ev.id === id);
+          if (target) {
+            updateEvent(id, { certificatesAvailable: !target.certificatesAvailable });
+            showToast(`Certificates ${!target.certificatesAvailable ? 'enabled' : 'disabled'} for ${target.title}`, 'info', 2000);
+            renderEventsTable();
+          }
+        });
+      });
+    }
+
+    function renderFeedbackMetrics() {
+      const grid = document.getElementById('feedback-metrics-grid');
+      grid.innerHTML = '';
+      const events = getEvents();
+
+      let renderedAny = false;
+
+      events.forEach(event => {
+        const feed = getFeedbackByEvent(event.id);
+        if (feed.length === 0) return;
+
+        renderedAny = true;
+        const avgOverall = (feed.reduce((acc, f) => acc + f.rating, 0) / feed.length).toFixed(1);
+        const avgOrg = (feed.reduce((acc, f) => acc + f.organizationRating, 0) / feed.length).toFixed(1);
+        const avgVenue = (feed.reduce((acc, f) => acc + f.venueRating, 0) / feed.length).toFixed(1);
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h4 style="font-size: 16px;">${event.title}</h4>
+          <div style="display: flex; flex-direction: column; gap: var(--space-8); margin: var(--space-12) 0;" class="text-xs">
+            <div class="flex-row-between">
+              <span class="text-muted">Overall Rating</span>
+              <strong style="color: var(--color-accent); font-size: 15px;">${avgOverall} ★</strong>
+            </div>
+            <div class="flex-row-between">
+              <span class="text-muted">Coordination &amp; Org</span>
+              <strong>${avgOrg} / 5</strong>
+            </div>
+            <div class="flex-row-between">
+              <span class="text-muted">Venue &amp; Facilities</span>
+              <strong>${avgVenue} / 5</strong>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm w-full view-sugg-btn" data-id="${event.id}">
+            View ${feed.filter(f => f.suggestions).length} Written Reviews
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+
+      if (!renderedAny) {
+        grid.style.display = 'block';
+        grid.innerHTML = `<p class="text-muted text-sm text-center" style="padding: var(--space-20);">No student feedback submissions yet.</p>`;
+      } else {
+        grid.style.display = 'grid';
+      }
+
+      document.querySelectorAll('.view-sugg-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => openSuggestionsModal(btn.dataset.id));
+      });
+    }
+
+    // Modal Actions
+    function openCreateModal() {
+      document.getElementById('modal-title').textContent = "Create New Event";
+      document.getElementById('event-id-field').value = '';
+      document.getElementById('event-form').reset();
+      document.getElementById('event-contact').value = currentUser.email;
+      toggleModal('event-modal', true);
+    }
+
+    function openEditModal(id) {
+      const evs = getEvents();
+      const event = evs.find(e => e.id === id);
+      if (!event) return;
+
+      document.getElementById('modal-title').textContent = "Edit Event Details";
+      document.getElementById('event-id-field').value = event.id;
+      document.getElementById('event-title').value = event.title;
+      document.getElementById('event-desc').value = event.description;
+      document.getElementById('event-category').value = event.category;
+      document.getElementById('event-max').value = event.maxParticipants;
+      document.getElementById('event-date').value = event.date;
+      document.getElementById('event-time').value = event.time;
+      document.getElementById('event-venue').value = event.venue;
+      document.getElementById('event-deadline').value = event.registrationDeadline;
+      document.getElementById('event-rules').value = event.rules || '';
+      document.getElementById('event-contact').value = event.contact;
+      document.getElementById('event-image').value = event.imageUrl || '';
+      document.getElementById('event-certs').checked = event.certificatesAvailable;
+
+      toggleModal('event-modal', true);
+    }
+
+    function handleEventSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('event-id-field').value;
+      const eventData = {
+        title: document.getElementById('event-title').value.trim(),
+        description: document.getElementById('event-desc').value.trim(),
+        category: document.getElementById('event-category').value,
+        maxParticipants: parseInt(document.getElementById('event-max').value),
+        date: document.getElementById('event-date').value,
+        time: document.getElementById('event-time').value,
+        venue: document.getElementById('event-venue').value.trim(),
+        registrationDeadline: document.getElementById('event-deadline').value,
+        rules: document.getElementById('event-rules').value.trim(),
+        contact: document.getElementById('event-contact').value.trim(),
+        imageUrl: document.getElementById('event-image').value.trim(),
+        certificatesAvailable: document.getElementById('event-certs').checked
+      };
+
+      try {
+        if (id) {
+          updateEvent(id, eventData);
+          showToast('Event updated successfully', 'success', 2500);
+        } else {
+          eventData.organizer = currentUser.name;
+          createEvent(eventData);
+          showToast('New event created and published!', 'success', 2500);
+        }
+        toggleModal('event-modal', false);
+        renderDashboard();
+      } catch (err) {
+        showToast(err.message || 'Operation failed.', 'error', 3000);
+      }
+    }
+
+    function openRegistrationsModal(eventId) {
+      activeModalEventId = eventId;
+      const tbody = document.getElementById('regs-table-body');
+      tbody.innerHTML = '';
+
+      const event = getEvents().find(e => e.id === eventId);
+      document.getElementById('regs-title').textContent = event ? `Registrations: ${event.title}` : 'Registrations';
+
+      const regs = getRegistrationsByEvent(eventId).filter(r => r.status === 'registered');
+      const users = getUsers();
+
+      regs.forEach(reg => {
+        const user = users.find(u => u.id === reg.userId) || { name: 'Unknown User', email: 'N/A' };
+        const dateStr = new Date(reg.registeredAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const checkedInBadge = reg.checkedIn 
+          ? `<span class="badge badge-success text-xs">✓ Checked In</span>`
+          : `<span class="badge badge-default text-xs">Registered</span>`;
+
+        const row = `
+          <tr>
+            <td data-label="Participant"><strong>${user.name}</strong></td>
+            <td data-label="Email" class="text-xs text-muted">${user.email}</td>
+            <td data-label="Ticket Code"><strong style="color: var(--color-accent);">${reg.registrationCode}</strong></td>
+            <td data-label="Enrolled Date" class="text-xs">${dateStr}</td>
+            <td data-label="Attendance">${checkedInBadge}</td>
+          </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+      });
+
+      if (regs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-sm text-center" style="padding: var(--space-24);">No students registered yet.</td></tr>`;
+      }
+
+      toggleModal('regs-modal', true);
+    }
+
+    function openAnnouncementModal(eventId) {
+      document.getElementById('ann-event-id').value = eventId;
+      document.getElementById('ann-message').value = '';
+      toggleModal('ann-modal', true);
+    }
+
+    function handleAnnSubmit(e) {
+      e.preventDefault();
+      const eventId = document.getElementById('ann-event-id').value;
+      const message = document.getElementById('ann-message').value.trim();
+
+      addAnnouncement(eventId, message);
+      showToast('Bulletin broadcasted to enrolled students', 'success', 3000);
+      toggleModal('ann-modal', false);
+    }
+
+    function openSuggestionsModal(eventId) {
+      const list = document.getElementById('suggestions-list');
+      list.innerHTML = '';
+      const feedback = getFeedbackByEvent(eventId);
+
+      feedback.forEach(f => {
+        if (!f.suggestions) return;
+        const item = document.createElement('div');
+        item.className = 'card';
+        item.style.padding = 'var(--space-12)';
+        item.style.background = 'var(--bg-surface)';
+        item.innerHTML = `
+          <p class="text-xs" style="font-style: italic;">"${f.suggestions}"</p>
+          <div class="flex-row-between mt-8 text-xs text-muted">
+            <span>Rating: ${f.rating} ★</span>
+            <span>Org: ${f.organizationRating}/5 • Venue: ${f.venueRating}/5</span>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+
+      if (list.children.length === 0) {
+        list.innerHTML = `<p class="text-muted text-xs text-center">No written comments provided yet.</p>`;
+      }
+
+      toggleModal('sugg-modal', true);
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

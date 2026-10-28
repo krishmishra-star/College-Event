@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="auth-container">
+    
+    <!-- Top Theme Toggle -->
+    <div style="position: absolute; top: 20px; right: 20px;">
+      <button id="theme-toggle-btn" class="btn-icon" title="Toggle Theme">
+        <span class="theme-toggle-icon">🌙</span>
+      </button>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="brand-icon" style="margin: 0 auto var(--space-12) auto; width: 44px; height: 44px; font-size: 20px;">CF</div>
+        <h2>CampusFlow</h2>
+        <p class="text-sm text-muted mt-4">Sign in to your college event space</p>
+      </div>
+
+      <div id="alert-box" class="badge badge-danger" style="display: none; width: 100%; padding: var(--space-12); font-size: 13px;"></div>
+
+      <form id="login-form" class="flex-col flex-gap-16">
+        <div>
+          <label for="email">College Email Address</label>
+          <div class="input-with-icon">
+            <span class="input-icon">✉️</span>
+            <input type="email" id="email" required placeholder="name@campusflow.edu" autocomplete="username">
+          </div>
+        </div>
+
+        <div>
+          <label for="password">Password</label>
+          <div class="input-with-icon">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="password" required placeholder="••••••••" autocomplete="current-password">
+            <button type="button" id="toggle-pwd-btn" class="password-toggle-btn" title="Show/Hide Password">👁️</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full" style="padding: 12px; margin-top: var(--space-4);">Sign In</button>
+      </form>
+
+      <div class="text-center text-sm text-muted">
+        Don't have an account? <a href="register.html" style="color: var(--color-accent); text-decoration: none; font-weight: 600;">Create account &rarr;</a>
+      </div>
+
+      <!-- Quick Demo Logins Pill Selector -->
+      <div style="border-top: 1px solid var(--border-color); padding-top: var(--space-16);">
+        <p class="text-xs text-muted font-semibold mb-8">⚡ One-Click Demo Logins:</p>
+        <div class="demo-pills">
+          <div class="demo-pill" data-email="student@campusflow.edu" data-pwd="password">
+            <span>🎓 <strong>Alex Student</strong> (Student Portal)</span>
+            <span class="text-accent">Auto-fill &rarr;</span>
+          </div>
+          <div class="demo-pill" data-email="organizer@campusflow.edu" data-pwd="password">
+            <span>⚡ <strong>Sarah Organizer</strong> (Event Admin)</span>
+            <span class="text-accent">Auto-fill &rarr;</span>
+          </div>
+          <div class="demo-pill" data-email="volunteer@campusflow.edu" data-pwd="password">
+            <span>🛡️ <strong>Vicky Volunteer</strong> (Check-in Scanner)</span>
+            <span class="text-accent">Auto-fill &rarr;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { getUserByEmail, setCurrentUser, getStoredTheme, setStoredTheme } from './js/data.js';
+    import { redirectUser } from './js/layout.js';
+
+    // Theme initialization
+    const theme = getStoredTheme();
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('.theme-toggle-icon').textContent = theme === 'dark' ? '☀️' : '🌙';
+
+    document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      setStoredTheme(next);
+      document.querySelector('.theme-toggle-icon').textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+
+    // Password visibility toggle
+    const pwdInput = document.getElementById('password');
+    const pwdToggle = document.getElementById('toggle-pwd-btn');
+    pwdToggle.addEventListener('click', () => {
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        pwdToggle.textContent = '🙈';
+      } else {
+        pwdInput.type = 'password';
+        pwdToggle.textContent = '👁️';
+      }
+    });
+
+    // Demo Pills Auto-fill
+    document.querySelectorAll('.demo-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.getElementById('email').value = pill.dataset.email;
+        document.getElementById('password').value = pill.dataset.pwd;
+        document.getElementById('login-form').dispatchEvent(new Event('submit'));
+      });
+    });
+
+    // Form Submission
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const alertBox = document.getElementById('alert-box');
+
+      alertBox.style.display = 'none';
+
+      const user = getUserByEmail(email);
+      if (!user || user.password !== password) {
+        alertBox.textContent = 'Invalid email or password. Please try again.';
+        alertBox.style.display = 'block';
+        return;
+      }
+
+      setCurrentUser(user);
+      redirectUser(user.role);
+    });
+  </script>
+</body>
+</html>

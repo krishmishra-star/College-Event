@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Certificate of Participation - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Certificate Specific Styles */
+    body {
+      background-color: var(--bg-page);
+      margin: 0;
+      padding: var(--space-24) var(--space-16);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+    }
+
+    .cert-viewport-wrapper {
+      width: 100%;
+      max-width: 860px;
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+      padding-bottom: var(--space-32);
+      scrollbar-width: thin;
+    }
+
+    .cert-frame {
+      background-color: #ffffff;
+      width: 842px; /* Standard A4 landscape ratio */
+      min-width: 842px;
+      height: 595px;
+      min-height: 595px;
+      padding: 40px;
+      border: 12px double #0f172a;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow-xl);
+      font-family: 'Playfair Display', Georgia, serif;
+      text-align: center;
+      box-sizing: border-box;
+      color: #0f172a;
+    }
+
+    .cert-inner-border {
+      border: 1px solid #94a3b8;
+      width: 100%;
+      height: 100%;
+      padding: var(--space-24) var(--space-32);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+    }
+
+    .cert-title {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: #0f172a;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .cert-subtitle {
+      font-size: 15px;
+      font-style: italic;
+      color: #64748b;
+      letter-spacing: 1px;
+    }
+
+    .cert-recipient-name {
+      font-size: 28px;
+      font-weight: 700;
+      color: #2563eb;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 6px;
+      width: fit-content;
+      min-width: 320px;
+      margin: 12px auto;
+    }
+
+    .cert-body {
+      font-size: 15px;
+      color: #475569;
+      line-height: 1.5;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+
+    .cert-event-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 6px 0;
+    }
+
+    .cert-signatures {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: var(--space-20);
+      padding: 0 var(--space-20);
+    }
+
+    .signature-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 180px;
+    }
+
+    .signature-line {
+      width: 100%;
+      border-top: 1px solid #475569;
+      margin-bottom: 6px;
+    }
+
+    .signature-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      font-family: var(--font-family);
+    }
+
+    .cert-id {
+      font-size: 11px;
+      color: #64748b;
+      position: absolute;
+      bottom: 12px;
+      right: 16px;
+      font-family: var(--font-family);
+    }
+
+    /* Print styling overrides */
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .cert-viewport-wrapper {
+        overflow: visible !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+      .cert-frame {
+        box-shadow: none !important;
+        border-color: #000000 !important;
+        margin: 0 auto !important;
+        page-break-inside: avoid !important;
+      }
+      @page {
+        size: A4 landscape;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Controls overlay -->
+  <div class="no-print flex-gap-12 mb-24 flex-wrap flex-center" style="z-index: 50; width: 100%; max-width: 840px;">
+    <button id="back-btn" class="btn btn-secondary btn-sm">&larr; Back to Dashboard</button>
+    <button id="print-btn" class="btn btn-primary btn-sm">🖨️ Print / Save as PDF</button>
+  </div>
+
+  <div id="error-container" class="no-print" style="display: none; width: 100%; max-width: 500px; margin: 0 auto;">
+    <!-- Renders error card if token invalid -->
+  </div>
+
+  <!-- Mobile scroll hint -->
+  <p class="no-print text-xs text-muted mb-8" id="scroll-hint" style="display: none;">
+    💡 Tip: Swipe horizontally to view full certificate or tap Print to download.
+  </p>
+
+  <!-- Certificate Canvas Wrapper -->
+  <div class="cert-viewport-wrapper">
+    <div id="cert-canvas" class="cert-frame" style="display: none;">
+      <div class="cert-inner-border">
+        <div>
+          <div class="cert-title">CampusFlow</div>
+          <div class="cert-subtitle">Certificate of Active Participation</div>
+        </div>
+
+        <div style="margin: var(--space-8) 0;">
+          <p class="cert-body" style="font-style: italic;">This credential is proudly awarded to</p>
+          <div id="recipient-name" class="cert-recipient-name">Alex Student</div>
+          <p class="cert-body">
+            in recognition of active attendance, verified check-in, and successful participation in
+          </p>
+          <div id="event-title" class="cert-event-title">Tech Hackfest 2026</div>
+          <p class="cert-body" id="event-details-text">
+            organized on September 10, 2026 at Main Seminar Hall.
+          </p>
+        </div>
+
+        <div class="cert-signatures">
+          <div class="signature-block">
+            <div style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 22px; text-align: center; margin-bottom: 2px; color: #1e293b;">Sarah Organizer</div>
+            <div class="signature-line"></div>
+            <span class="signature-title">Event Organizer</span>
+          </div>
+          
+          <div style="text-align: center;">
+            <div style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #cbd5e1; display: inline-flex; align-items: center; justify-content: center; font-size: 20px;">
+              🎖️
+            </div>
+          </div>
+
+          <div class="signature-block">
+            <div style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 22px; text-align: center; margin-bottom: 2px; color: #1e293b;">Academic Dean</div>
+            <div class="signature-line"></div>
+            <span class="signature-title">Dean of Campus Events</span>
+          </div>
+        </div>
+      </div>
+      <div class="cert-id" id="cert-id-tag">Cert ID: CF-XXXX</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { getRegistrations, getEventById, getUsers, getCurrentUser, getStoredTheme } from './js/data.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Theme init
+      const theme = getStoredTheme();
+      document.documentElement.setAttribute('data-theme', theme);
+
+      const params = new URLSearchParams(window.location.search);
+      const regId = params.get('regId');
+      const certCanvas = document.getElementById('cert-canvas');
+      const currentUser = getCurrentUser();
+
+      // Show mobile scroll hint on small viewports
+      if (window.innerWidth < 860) {
+        const hint = document.getElementById('scroll-hint');
+        if (hint) hint.style.display = 'block';
+      }
+
+      // Back button
+      document.getElementById('back-btn').addEventListener('click', () => {
+        if (currentUser) {
+          if (currentUser.role === 'student') window.location.href = 'student-dashboard.html';
+          else if (currentUser.role === 'organizer') window.location.href = 'organizer-dashboard.html';
+          else window.location.href = 'events.html';
+        } else {
+          window.location.href = 'login.html';
+        }
+      });
+
+      // Print button
+      document.getElementById('print-btn').addEventListener('click', () => {
+        window.print();
+      });
+
+      if (!regId) {
+        showError("Invalid access: No registration pass token provided.");
+        return;
+      }
+
+      const regs = getRegistrations();
+      const registration = regs.find(r => r.id === regId);
+
+      if (!registration) {
+        showError("Registration record not found.");
+        return;
+      }
+
+      if (registration.status !== 'registered' || !registration.checkedIn) {
+        showError("This certificate is not yet available because attendance has not been verified at the venue check-in desk.");
+        return;
+      }
+
+      const event = getEventById(registration.eventId);
+      if (!event) {
+        showError("The event associated with this registration does not exist.");
+        return;
+      }
+
+      if (!event.certificatesAvailable) {
+        showError("Certificates are not enabled for this event by the event organizer.");
+        return;
+      }
+
+      const users = getUsers();
+      const student = users.find(u => u.id === registration.userId);
+      if (!student) {
+        showError("The attendee profile for this certificate could not be resolved.");
+        return;
+      }
+
+      // Populate Certificate details
+      document.getElementById('recipient-name').textContent = student.name;
+      document.getElementById('event-title').textContent = event.title;
+      
+      const dateStr = new Date(event.date).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      document.getElementById('event-details-text').textContent = `organized on ${dateStr} at ${event.venue}.`;
+      document.getElementById('cert-id-tag').textContent = `Verification ID: ${registration.registrationCode}-${registration.id.replace('reg_', '')}`;
+
+      // Render Certificate
+      certCanvas.style.display = 'flex';
+    });
+
+    function showError(message) {
+      const errBox = document.getElementById('error-container');
+      errBox.innerHTML = `
+        <div class="card" style="border-color: var(--danger-border); background-color: var(--danger-bg); padding: var(--space-24); text-align: center;">
+          <h3 style="color: var(--danger-text);">Cannot Generate Certificate</h3>
+          <p class="text-sm mt-8">${message}</p>
+          <a href="student-dashboard.html" class="btn btn-secondary btn-sm mt-16">Return to Student Dashboard</a>
+        </div>
+      `;
+      errBox.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

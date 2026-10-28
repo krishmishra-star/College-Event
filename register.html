@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="auth-container">
+
+    <!-- Top Theme Toggle -->
+    <div style="position: absolute; top: 20px; right: 20px;">
+      <button id="theme-toggle-btn" class="btn-icon" title="Toggle Theme">
+        <span class="theme-toggle-icon">🌙</span>
+      </button>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="brand-icon" style="margin: 0 auto var(--space-12) auto; width: 44px; height: 44px; font-size: 20px;">CF</div>
+        <h2>Create Account</h2>
+        <p class="text-sm text-muted mt-4">Join CampusFlow for college events</p>
+      </div>
+
+      <div id="alert-box" class="badge badge-danger" style="display: none; width: 100%; padding: var(--space-12); font-size: 13px;"></div>
+      <div id="success-box" class="badge badge-success" style="display: none; width: 100%; padding: var(--space-12); font-size: 13px;"></div>
+
+      <form id="register-form" class="flex-col flex-gap-16">
+        <div>
+          <label for="name">Full Legal Name</label>
+          <div class="input-with-icon">
+            <span class="input-icon">👤</span>
+            <input type="text" id="name" required placeholder="John Doe" autocomplete="name">
+          </div>
+        </div>
+
+        <div>
+          <label for="email">College Email Address</label>
+          <div class="input-with-icon">
+            <span class="input-icon">✉️</span>
+            <input type="email" id="email" required placeholder="name@campusflow.edu" autocomplete="email">
+          </div>
+        </div>
+
+        <div>
+          <label for="password">Password</label>
+          <div class="input-with-icon">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="password" required placeholder="••••••••" autocomplete="new-password">
+            <button type="button" id="toggle-pwd-btn" class="password-toggle-btn" title="Show/Hide Password">👁️</button>
+          </div>
+        </div>
+
+        <div>
+          <label for="role">Register As</label>
+          <select id="role" required>
+            <option value="student">🎓 Student (Browse, Register &amp; Attend Events)</option>
+            <option value="organizer">⚡ Event Organizer (Create, Edit &amp; Manage Events)</option>
+            <option value="volunteer">🛡️ Event Volunteer (Scan Tickets &amp; Gate Check-In)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full" style="padding: 12px; margin-top: var(--space-4);">Register &amp; Continue</button>
+      </form>
+
+      <div class="text-center text-sm text-muted">
+        Already have an account? <a href="login.html" style="color: var(--color-accent); text-decoration: none; font-weight: 600;">Sign in here &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createUser, setCurrentUser, getStoredTheme, setStoredTheme } from './js/data.js';
+    import { redirectUser } from './js/layout.js';
+
+    // Theme initialization
+    const theme = getStoredTheme();
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('.theme-toggle-icon').textContent = theme === 'dark' ? '☀️' : '🌙';
+
+    document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      setStoredTheme(next);
+      document.querySelector('.theme-toggle-icon').textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+
+    // Password visibility toggle
+    const pwdInput = document.getElementById('password');
+    const pwdToggle = document.getElementById('toggle-pwd-btn');
+    pwdToggle.addEventListener('click', () => {
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        pwdToggle.textContent = '🙈';
+      } else {
+        pwdInput.type = 'password';
+        pwdToggle.textContent = '👁️';
+      }
+    });
+
+    // Registration Form Handler
+    document.getElementById('register-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
+
+      const alertBox = document.getElementById('alert-box');
+      const successBox = document.getElementById('success-box');
+
+      alertBox.style.display = 'none';
+      successBox.style.display = 'none';
+
+      try {
+        const newUser = createUser(name, email, password, role);
+        successBox.textContent = '✓ Account created successfully! Launching your space...';
+        successBox.style.display = 'block';
+
+        // Auto sign in
+        setCurrentUser(newUser);
+        setTimeout(() => {
+          redirectUser(newUser.role);
+        }, 1200);
+      } catch (err) {
+        alertBox.textContent = err.message || 'Registration failed.';
+        alertBox.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

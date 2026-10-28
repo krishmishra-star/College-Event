@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="layout-container">
+    <!-- Header -->
+    <div id="app-header"></div>
+    
+    <!-- Sidebar -->
+    <div id="app-sidebar"></div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <div class="flex-row-between mb-24 flex-wrap" style="gap: var(--space-16);">
+        <div>
+          <h2 id="welcome-message">Welcome back, Student</h2>
+          <p class="text-muted text-sm mt-4">Access your QR tickets, event reminders, certificates, and saved events</p>
+        </div>
+        <a href="events.html" class="btn btn-primary btn-sm">+ Explore More Events</a>
+      </div>
+
+      <!-- Quick Stat Summary Cards -->
+      <div class="grid-3 mb-24" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="stat-card">
+          <div class="stat-icon primary">🎟️</div>
+          <div class="stat-info">
+            <span class="stat-val" id="stat-upcoming-count">0</span>
+            <span class="stat-label">Upcoming Passes</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon success">🏆</div>
+          <div class="stat-info">
+            <span class="stat-val" id="stat-attended-count">0</span>
+            <span class="stat-label">Completed &amp; Certificates</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon warning">❤️</div>
+          <div class="stat-info">
+            <span class="stat-val" id="stat-saved-count">0</span>
+            <span class="stat-label">Bookmarked Events</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main 2-Column Grid -->
+      <div class="grid-3" style="grid-template-columns: 2fr 1fr; gap: var(--space-24);">
+        <!-- Left: Registrations & Bookmarks -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-24);">
+          
+          <!-- Upcoming Events -->
+          <div>
+            <div class="flex-row-between mb-16">
+              <h3>Upcoming Registered Events</h3>
+              <span class="badge badge-primary text-xs" id="upcoming-badge">Active</span>
+            </div>
+            <div id="upcoming-events-list" style="display: flex; flex-direction: column; gap: var(--space-16);">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Saved / Bookmarked Events -->
+          <div>
+            <div class="flex-row-between mb-16">
+              <h3>Saved &amp; Bookmarked</h3>
+              <a href="events.html" class="text-sm text-accent font-medium" style="text-decoration: none;">View all &rarr;</a>
+            </div>
+            <div id="saved-events-list" style="display: flex; flex-direction: column; gap: var(--space-16);">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Past Events & Certificates -->
+          <div>
+            <div class="flex-row-between mb-16">
+              <h3>Past Events &amp; Certificates</h3>
+              <span class="badge badge-default text-xs">History</span>
+            </div>
+            <div id="past-events-list" style="display: flex; flex-direction: column; gap: var(--space-16);">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Announcements Feed -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-24);">
+          <div class="card">
+            <div class="flex-row-between mb-16">
+              <h3>Event Bulletins</h3>
+              <span class="badge badge-info text-xs">Live</span>
+            </div>
+            <div id="announcements-list" style="display: flex; flex-direction: column; gap: var(--space-16); max-height: 480px; overflow-y: auto; padding-right: 4px;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= MODALS ================= -->
+
+      <!-- 1. QR Ticket Modal -->
+      <div id="qr-modal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 440px;">
+          <div class="flex-row-between mb-16">
+            <h3>Digital Event Pass</h3>
+            <button id="close-qr-modal" class="btn-icon" style="border: none;">✕</button>
+          </div>
+          
+          <div class="qr-ticket-card">
+            <h4 id="qr-event-title" style="font-size: 18px;">Tech Hackfest 2026</h4>
+            <p id="qr-student-name" class="text-sm text-muted mt-4">Attendee: Alex Student</p>
+            
+            <!-- Dynamic QR Code SVG Canvas -->
+            <div id="qr-svg-container" class="qr-canvas-box"></div>
+
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: 3px; color: var(--color-accent);" id="qr-code-text">
+              CF-TECH
+            </div>
+            <p class="text-xs text-muted mt-8">Show this QR code or alphanumeric ticket ID to the volunteer desk for venue entry.</p>
+          </div>
+
+          <div class="flex-gap-12 mt-20">
+            <button id="ics-ticket-btn" class="btn btn-secondary btn-sm" style="flex: 1;">📅 Add to Calendar</button>
+            <button id="print-ticket-btn" class="btn btn-primary btn-sm" style="flex: 1;">🖨️ Print Ticket</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Feedback Modal -->
+      <div id="feedback-modal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 500px;">
+          <div class="flex-row-between mb-16">
+            <h3 id="feedback-title">Submit Feedback</h3>
+            <button id="close-feedback-btn" class="btn-icon" style="border: none;">✕</button>
+          </div>
+          <form id="feedback-form" style="display: flex; flex-direction: column; gap: var(--space-16);">
+            <input type="hidden" id="feedback-event-id">
+            <div>
+              <label for="rating-overall">Overall Event Experience (1-5)</label>
+              <select id="rating-overall" required>
+                <option value="5">⭐⭐⭐⭐⭐ 5 - Outstanding</option>
+                <option value="4">⭐⭐⭐⭐ 4 - Very Good</option>
+                <option value="3">⭐⭐⭐ 3 - Good</option>
+                <option value="2">⭐⭐ 2 - Fair</option>
+                <option value="1">⭐ 1 - Poor</option>
+              </select>
+            </div>
+            <div>
+              <label for="rating-org">Organization &amp; Management (1-5)</label>
+              <select id="rating-org" required>
+                <option value="5">5 - Well organized &amp; prompt</option>
+                <option value="4">4 - Good organization</option>
+                <option value="3">3 - Satisfactory</option>
+                <option value="2">2 - Needs improvement</option>
+                <option value="1">1 - Poor coordination</option>
+              </select>
+            </div>
+            <div>
+              <label for="rating-venue">Venue &amp; Facilities (1-5)</label>
+              <select id="rating-venue" required>
+                <option value="5">5 - Excellent acoustics &amp; seating</option>
+                <option value="4">4 - Good facilities</option>
+                <option value="3">3 - Adequate</option>
+                <option value="2">2 - Cramped / Audio issues</option>
+                <option value="1">1 - Unsatisfactory</option>
+              </select>
+            </div>
+            <div>
+              <label for="feedback-suggestions">Suggestions &amp; Highlights</label>
+              <textarea id="feedback-suggestions" rows="3" placeholder="What stood out? What can be enhanced in future editions?"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Feedback</button>
+          </form>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module">
+    import { 
+      getCurrentUser, 
+      getRegistrationsByUser, 
+      getEventById, 
+      cancelRegistration, 
+      getAnnouncements,
+      getFeedback,
+      addFeedback,
+      getBookmarks,
+      downloadICS
+    } from './js/data.js';
+    import { showToast, showConfirm } from './js/layout.js';
+    import { generateQRCodeSVG } from './js/qr.js';
+
+    let currentUser = null;
+    let currentTicketEvent = null;
+
+    function init() {
+      currentUser = getCurrentUser();
+      if (!currentUser || currentUser.role !== 'student') {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      document.getElementById('welcome-message').textContent = `Welcome back, ${currentUser.name}`;
+      
+      renderDashboard();
+
+      // Modal Events
+      document.getElementById('close-qr-modal').addEventListener('click', () => toggleModal('qr-modal', false));
+      document.getElementById('close-feedback-btn').addEventListener('click', () => toggleModal('feedback-modal', false));
+      document.getElementById('feedback-form').addEventListener('submit', handleFeedbackSubmit);
+      
+      document.getElementById('print-ticket-btn').addEventListener('click', () => window.print());
+      document.getElementById('ics-ticket-btn').addEventListener('click', () => {
+        if (currentTicketEvent) {
+          downloadICS(currentTicketEvent);
+          showToast('Calendar invite downloaded', 'info', 2000);
+        }
+      });
+    }
+
+    function toggleModal(id, show) {
+      const modal = document.getElementById(id);
+      if (show) modal.classList.add('active');
+      else modal.classList.remove('active');
+    }
+
+    function renderDashboard() {
+      const regs = getRegistrationsByUser(currentUser.id).filter(r => r.status === 'registered');
+      const upcomingList = document.getElementById('upcoming-events-list');
+      const pastList = document.getElementById('past-events-list');
+      const savedList = document.getElementById('saved-events-list');
+      const announcementsList = document.getElementById('announcements-list');
+
+      upcomingList.innerHTML = '';
+      pastList.innerHTML = '';
+      savedList.innerHTML = '';
+      announcementsList.innerHTML = '';
+
+      const now = new Date();
+      const registeredEventIds = regs.map(r => r.eventId);
+
+      let upcomingCount = 0;
+      let attendedCount = 0;
+
+      // 1. Render Registered Events
+      regs.forEach(reg => {
+        const event = getEventById(reg.eventId);
+        if (!event) return;
+
+        const eventDate = new Date(event.date + 'T' + event.time);
+        const isPast = eventDate < now;
+
+        const dateStr = new Date(event.date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+
+        if (!isPast) {
+          upcomingCount++;
+          const cardHtml = `
+            <div class="card" style="padding: var(--space-20);">
+              <div class="flex-row-between flex-wrap" style="gap: var(--space-12);">
+                <div style="flex: 1; min-width: 200px;">
+                  <div class="flex-gap-8 items-center mb-8">
+                    <span class="badge badge-primary text-xs">${event.category}</span>
+                    <span class="badge badge-success text-xs">Registered</span>
+                  </div>
+                  <h3 style="font-size: 18px;">${event.title}</h3>
+                  <div class="text-xs text-muted mt-8" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div>📅 <strong>${dateStr}</strong> at ${event.time}</div>
+                    <div>📍 ${event.venue}</div>
+                  </div>
+                </div>
+
+                <div class="flex-gap-12 flex-wrap" style="align-items: center;">
+                  <button class="btn btn-primary btn-sm view-qr-btn" data-reg-code="${reg.registrationCode}" data-event-id="${event.id}">
+                    📱 View QR Ticket
+                  </button>
+                  <button class="btn btn-secondary btn-sm ics-dash-btn" data-event-id="${event.id}" title="Add to Calendar">
+                    📅
+                  </button>
+                  <button class="btn btn-danger btn-sm cancel-btn" data-reg-id="${reg.id}" data-event-title="${event.title}">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          upcomingList.insertAdjacentHTML('beforeend', cardHtml);
+        } else {
+          if (reg.checkedIn) attendedCount++;
+
+          const feedbacks = getFeedback();
+          const submittedFeedback = feedbacks.find(f => f.eventId === event.id && f.userId === currentUser.id);
+
+          let actionButtons = '';
+          if (reg.checkedIn) {
+            if (event.certificatesAvailable) {
+              actionButtons += `<a href="certificate.html?regId=${reg.id}" class="btn btn-primary btn-sm" target="_blank">🎓 Certificate</a>`;
+            } else {
+              actionButtons += `<span class="badge badge-success text-xs">Attended</span>`;
+            }
+          } else {
+            actionButtons += `<span class="badge badge-danger text-xs">Absent / Not Checked In</span>`;
+          }
+
+          if (submittedFeedback) {
+            actionButtons += `<span class="badge badge-info text-xs">Feedback Sent (${submittedFeedback.rating} ★)</span>`;
+          } else {
+            actionButtons += `<button class="btn btn-secondary btn-sm feedback-btn" data-event-id="${event.id}" data-event-title="${event.title}">Feedback</button>`;
+          }
+
+          const cardHtml = `
+            <div class="card" style="padding: var(--space-16);">
+              <div class="flex-row-between flex-wrap" style="gap: var(--space-12);">
+                <div>
+                  <span class="badge badge-default text-xs">${event.category}</span>
+                  <h4 style="margin-top: 4px; font-size: 16px;">${event.title}</h4>
+                  <p class="text-xs text-muted mt-4">📅 Concluded on ${dateStr}</p>
+                </div>
+                <div class="flex-gap-8 flex-wrap" style="align-items: center;">
+                  ${actionButtons}
+                </div>
+              </div>
+            </div>
+          `;
+          pastList.insertAdjacentHTML('beforeend', cardHtml);
+        }
+      });
+
+      if (upcomingCount === 0) {
+        upcomingList.innerHTML = `<div class="card text-center" style="padding: var(--space-24);"><p class="text-muted text-sm">You have no upcoming registered events. <a href="events.html" style="color: var(--color-accent); font-weight: 600;">Browse and register for events &rarr;</a></p></div>`;
+      }
+      if (pastList.children.length === 0) {
+        pastList.innerHTML = `<div class="card text-center" style="padding: var(--space-20);"><p class="text-muted text-sm">No past event attendances found.</p></div>`;
+      }
+
+      // 2. Render Saved / Bookmarked Events
+      const bookmarks = getBookmarks();
+      document.getElementById('stat-saved-count').textContent = bookmarks.length;
+      document.getElementById('stat-upcoming-count').textContent = upcomingCount;
+      document.getElementById('stat-attended-count').textContent = attendedCount;
+
+      let savedRendered = 0;
+      bookmarks.forEach(bookId => {
+        const ev = getEventById(bookId);
+        if (!ev) return;
+        savedRendered++;
+        const isRegistered = registeredEventIds.includes(ev.id);
+
+        const cardHtml = `
+          <div class="card" style="padding: var(--space-16); background: var(--bg-surface);">
+            <div class="flex-row-between flex-wrap" style="gap: var(--space-8);">
+              <div>
+                <span class="badge badge-primary text-xs">${ev.category}</span>
+                <h4 style="font-size: 16px; margin-top: 4px;">${ev.title}</h4>
+                <p class="text-xs text-muted mt-2">📅 ${ev.date} • 📍 ${ev.venue}</p>
+              </div>
+              <div class="flex-gap-8">
+                ${isRegistered 
+                  ? `<span class="badge badge-success text-xs">Registered</span>` 
+                  : `<a href="event-details.html?id=${ev.id}" class="btn btn-primary btn-sm">Register</a>`}
+                <a href="event-details.html?id=${ev.id}" class="btn btn-secondary btn-sm">Details</a>
+              </div>
+            </div>
+          </div>
+        `;
+        savedList.insertAdjacentHTML('beforeend', cardHtml);
+      });
+
+      if (savedRendered === 0) {
+        savedList.innerHTML = `<div class="card text-center" style="padding: var(--space-20);"><p class="text-muted text-sm">No saved events yet. Click the heart icon on any event in <a href="events.html" style="color: var(--color-accent);">Explore Events</a> to bookmark it.</p></div>`;
+      }
+
+      // 3. Render Announcements
+      const allAnn = getAnnouncements();
+      const studentAnn = allAnn.filter(a => registeredEventIds.includes(a.eventId));
+      studentAnn.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      if (studentAnn.length === 0) {
+        announcementsList.innerHTML = `<p class="text-muted text-sm text-center" style="padding: var(--space-24);">No new bulletins for your registered events.</p>`;
+      } else {
+        studentAnn.forEach(ann => {
+          const event = getEventById(ann.eventId);
+          const dateStr = new Date(ann.createdAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+
+          const annHtml = `
+            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-12);">
+              <div class="flex-row-between">
+                <strong class="text-xs font-semibold text-accent">${event ? event.title : 'Campus Bulletin'}</strong>
+                <span class="text-xs text-muted">${dateStr}</span>
+              </div>
+              <p class="text-xs mt-4" style="line-height: 1.4; color: var(--text-main);">${ann.message}</p>
+            </div>
+          `;
+          announcementsList.insertAdjacentHTML('beforeend', annHtml);
+        });
+      }
+
+      // Hook QR Ticket Clicks
+      document.querySelectorAll('.view-qr-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const regCode = btn.dataset.regCode;
+          const eventId = btn.dataset.eventId;
+          openQRModal(regCode, eventId);
+        });
+      });
+
+      // Hook ICS Clicks
+      document.querySelectorAll('.ics-dash-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const ev = getEventById(btn.dataset.eventId);
+          if (ev) {
+            downloadICS(ev);
+            showToast(`Calendar file downloaded for ${ev.title}`, 'info', 2000);
+          }
+        });
+      });
+
+      // Hook Cancel Clicks
+      document.querySelectorAll('.cancel-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const regId = btn.dataset.regId;
+          const title = btn.dataset.eventTitle;
+          showConfirm(
+            'Cancel Registration',
+            `Are you sure you want to cancel your registration for "${title}"? Your seat will be released immediately.`,
+            () => {
+              cancelRegistration(regId);
+              showToast('Registration cancelled and seat released', 'warning', 2500);
+              renderDashboard();
+            },
+            'Yes, Cancel',
+            'Keep Seat',
+            true
+          );
+        });
+      });
+
+      // Hook Feedback Clicks
+      document.querySelectorAll('.feedback-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const eventId = btn.dataset.eventId;
+          const eventTitle = btn.dataset.eventTitle;
+          openFeedbackModal(eventId, eventTitle);
+        });
+      });
+    }
+
+    // QR Modal Logic
+    function openQRModal(code, eventId) {
+      const event = getEventById(eventId);
+      currentTicketEvent = event;
+
+      document.getElementById('qr-event-title').textContent = event ? event.title : 'Event Pass';
+      document.getElementById('qr-student-name').textContent = `Attendee: ${currentUser.name} (${currentUser.email})`;
+      document.getElementById('qr-code-text').textContent = code;
+
+      const svgContainer = document.getElementById('qr-svg-container');
+      svgContainer.innerHTML = generateQRCodeSVG(code, 160);
+
+      toggleModal('qr-modal', true);
+    }
+
+    // Feedback Modal Logic
+    function openFeedbackModal(eventId, eventTitle) {
+      document.getElementById('feedback-event-id').value = eventId;
+      document.getElementById('feedback-title').textContent = `Feedback for ${eventTitle}`;
+      document.getElementById('feedback-suggestions').value = '';
+      document.getElementById('rating-overall').value = '5';
+      document.getElementById('rating-org').value = '5';
+      document.getElementById('rating-venue').value = '5';
+      toggleModal('feedback-modal', true);
+    }
+
+    function handleFeedbackSubmit(e) {
+      e.preventDefault();
+      const eventId = document.getElementById('feedback-event-id').value;
+      const overall = document.getElementById('rating-overall').value;
+      const org = document.getElementById('rating-org').value;
+      const venue = document.getElementById('rating-venue').value;
+      const suggestions = document.getElementById('feedback-suggestions').value.trim();
+
+      try {
+        addFeedback(eventId, currentUser.id, overall, org, venue, suggestions);
+        showToast('Thank you! Feedback submitted successfully', 'success', 3000);
+        toggleModal('feedback-modal', false);
+        renderDashboard();
+      } catch (err) {
+        showToast(err.message || 'Failed to submit feedback.', 'error', 3000);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

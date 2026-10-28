@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Details - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="layout-container">
+    <!-- Header -->
+    <div id="app-header"></div>
+    
+    <!-- Sidebar -->
+    <div id="app-sidebar"></div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <div class="flex-row-between mb-24 flex-wrap" style="gap: var(--space-12);">
+        <a href="events.html" class="btn btn-secondary btn-sm">&larr; Back to Events</a>
+        <div class="flex-gap-8" id="header-action-buttons">
+          <!-- Populated dynamically (Bookmark + Calendar Export) -->
+        </div>
+      </div>
+
+      <div id="details-container">
+        <!-- Renders dynamically -->
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module">
+    import { 
+      getEventById, 
+      getCurrentUser, 
+      getRegistrations, 
+      registerForEvent, 
+      isBookmarked, 
+      toggleBookmark, 
+      downloadICS 
+    } from './js/data.js';
+    import { showToast } from './js/layout.js';
+    import { generateQRCodeSVG } from './js/qr.js';
+
+    let currentEvent = null;
+
+    function init() {
+      const params = new URLSearchParams(window.location.search);
+      const eventId = params.get('id');
+      if (!eventId) {
+        window.location.href = 'events.html';
+        return;
+      }
+
+      currentEvent = getEventById(eventId);
+      renderEventDetails(eventId);
+    }
+
+    function renderEventDetails(eventId) {
+      const container = document.getElementById('details-container');
+      const headerActions = document.getElementById('header-action-buttons');
+      const event = currentEvent || getEventById(eventId);
+
+      if (!event) {
+        container.innerHTML = `
+          <div class="card text-center" style="padding: var(--space-48);">
+            <h3>Event Not Found</h3>
+            <p class="text-muted text-sm mt-8">The event you are looking for does not exist or has been removed.</p>
+            <a href="events.html" class="btn btn-primary btn-sm mt-16">Browse All Events</a>
+          </div>
+        `;
+        return;
+      }
+
+      const user = getCurrentUser();
+      const regs = getRegistrations();
+      const activeReg = user ? regs.find(r => r.eventId === eventId && r.userId === user.id && r.status === 'registered') : null;
+      const bookmarked = isBookmarked(event.id);
+      
+      const now = new Date();
+      const eventDate = new Date(event.date + 'T' + event.time);
+      const isPast = eventDate < now;
+      const deadline = new Date(event.registrationDeadline + 'T23:59:59');
+      const deadlinePassed = now > deadline;
+
+      // Header Actions: Bookmark + ICS
+      headerActions.innerHTML = `
+        <button id="detail-bookmark-btn" class="btn btn-secondary btn-sm">
+          ${bookmarked ? '❤️ Saved' : '🤍 Bookmark Event'}
+        </button>
+        <button id="detail-ics-btn" class="btn btn-secondary btn-sm">
+          📅 Add to Calendar (.ics)
+        </button>
+      `;
+
+      document.getElementById('detail-bookmark-btn').addEventListener('click', () => {
+        const isSaved = toggleBookmark(event.id);
+        document.getElementById('detail-bookmark-btn').innerHTML = isSaved ? '❤️ Saved' : '🤍 Bookmark Event';
+        showToast(isSaved ? 'Saved to Bookmarks' : 'Removed from Bookmarks', 'success', 2000);
+      });
+
+      document.getElementById('detail-ics-btn').addEventListener('click', () => {
+        downloadICS(event);
+        showToast(`Calendar file downloaded for ${event.title}`, 'info', 2500);
+      });
+
+      // Determine Registration Card HTML
+      let regStatusHtml = '';
+
+      if (!user) {
+        regStatusHtml = `
+          <div class="card" style="padding: var(--space-20); text-align: center;">
+            <p class="text-sm text-muted">Please log in to register for this event.</p>
+            <a href="login.html" class="btn btn-primary btn-sm mt-12 w-full">Sign In</a>
+          </div>
+        `;
+      } else if (user.role !== 'student') {
+        regStatusHtml = `
+          <div class="card" style="padding: var(--space-16); text-align: center; background: var(--bg-surface);">
+            <p class="text-xs text-muted">Only student accounts can register for event passes. Your current role is <strong>${user.role}</strong>.</p>
+          </div>
+        `;
+      } else if (activeReg) {
+        regStatusHtml = `
+          <div class="card" style="border-color: var(--success-border); background-color: var(--success-bg); padding: var(--space-20); text-align: center;">
+            <div class="flex-gap-8 flex-center">
+              <span class="badge badge-success text-xs">✓ Confirmed Registration</span>
+            </div>
+            <p class="text-xs text-muted mt-8">Your Venue Check-in QR Pass:</p>
+            
+            <div class="qr-canvas-box" style="margin: var(--space-12) auto; display: inline-block;">
+              ${generateQRCodeSVG(activeReg.registrationCode, 140)}
+            </div>
+
+            <div style="font-size: 22px; font-weight: 800; color: var(--text-main); letter-spacing: 2px; margin-bottom: var(--space-8);">
+              ${activeReg.registrationCode}
+            </div>
+            <p class="text-xs text-muted">Show this pass to event volunteers at the entrance foyer.</p>
+            <div class="flex-gap-8 mt-12">
+              <a href="student-dashboard.html" class="btn btn-primary btn-sm w-full">Go to My Dashboard</a>
+            </div>
+          </div>
+        `;
+      } else if (isPast) {
+        regStatusHtml = `
+          <div class="card" style="padding: var(--space-16); text-align: center; background: var(--bg-surface);">
+            <span class="badge badge-default mb-8">Concluded</span>
+            <p class="text-xs text-muted">This event has already taken place. Registration is closed.</p>
+          </div>
+        `;
+      } else if (event.availableSeats <= 0) {
+        regStatusHtml = `
+          <div class="card" style="padding: var(--space-16); text-align: center; background: var(--danger-bg); border-color: var(--danger-border);">
+            <span class="badge badge-danger mb-8">Sold Out</span>
+            <p class="text-xs" style="color: var(--danger-text);">All seats have been reserved for this session.</p>
+          </div>
+        `;
+      } else if (deadlinePassed) {
+        regStatusHtml = `
+          <div class="card" style="padding: var(--space-16); text-align: center; background: var(--warning-bg); border-color: var(--warning-border);">
+            <span class="badge badge-warning mb-8">Deadline Passed</span>
+            <p class="text-xs" style="color: var(--warning-text);">Registration closed on ${new Date(event.registrationDeadline).toLocaleDateString()}.</p>
+          </div>
+        `;
+      } else {
+        regStatusHtml = `
+          <div class="card" style="padding: var(--space-20);">
+            <div class="flex-row-between mb-16">
+              <span class="text-xs text-muted">Seats Available:</span>
+              <span class="font-semibold text-sm">${event.availableSeats} of ${event.maxParticipants}</span>
+            </div>
+            <button id="register-action-btn" class="btn btn-primary w-full" style="padding: 12px;">Register for Pass</button>
+            <p class="text-xs text-muted mt-8 text-center">
+              Enrollment closes on ${new Date(event.registrationDeadline).toLocaleDateString()}
+            </p>
+          </div>
+        `;
+      }
+
+      const dateStr = new Date(event.date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+
+      const formattedDeadline = new Date(event.registrationDeadline).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+
+      container.innerHTML = `
+        <div class="grid-3" style="grid-template-columns: 2fr 1.1fr; gap: var(--space-24);">
+          <!-- Details Left -->
+          <div style="display: flex; flex-direction: column; gap: var(--space-20);">
+            <div class="card" style="padding: 0; overflow: hidden;">
+              <img src="${event.imageUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800'}" 
+                   alt="${event.title}" 
+                   style="width: 100%; max-height: 360px; object-fit: cover; display: block;">
+              
+              <div style="padding: var(--space-24);">
+                <div class="flex-gap-8 items-center mb-8">
+                  <span class="badge badge-primary">${event.category}</span>
+                  ${event.certificatesAvailable ? '<span class="badge badge-success">🎓 Certificate Included</span>' : ''}
+                </div>
+                <h1>${event.title}</h1>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>About this Event</h3>
+              <p class="text-muted mt-8" style="white-space: pre-line; line-height: 1.6;">${event.description}</p>
+            </div>
+
+            <div class="card">
+              <h3>Rules &amp; Guidelines</h3>
+              <p class="text-muted mt-8" style="white-space: pre-line; line-height: 1.6;">${event.rules || 'Standard college code of conduct and ID verification apply. No special prerequisites specified.'}</p>
+            </div>
+          </div>
+
+          <!-- Quick Info Right -->
+          <div style="display: flex; flex-direction: column; gap: var(--space-20);">
+            <!-- Registration Card -->
+            ${regStatusHtml}
+
+            <!-- Details Card -->
+            <div class="card">
+              <h3 class="mb-16">Event Logistics</h3>
+              <div style="display: flex; flex-direction: column; gap: var(--space-12);" class="text-sm">
+                <div>
+                  <span class="text-muted text-xs" style="display: block;">Date</span>
+                  <strong>${dateStr}</strong>
+                </div>
+                <div>
+                  <span class="text-muted text-xs" style="display: block;">Time</span>
+                  <strong>${event.time}</strong>
+                </div>
+                <div>
+                  <span class="text-muted text-xs" style="display: block;">Location / Venue</span>
+                  <strong>${event.venue}</strong>
+                </div>
+                <div>
+                  <span class="text-muted text-xs" style="display: block;">Registration Deadline</span>
+                  <strong>${formattedDeadline}</strong>
+                </div>
+                <div style="border-top: 1px solid var(--border-color); padding-top: var(--space-12);">
+                  <span class="text-muted text-xs" style="display: block;">Organizer Host</span>
+                  <strong>${event.organizer}</strong>
+                </div>
+                <div>
+                  <span class="text-muted text-xs" style="display: block;">Contact Inquiry</span>
+                  <a href="mailto:${event.contact}" style="color: var(--color-accent); text-decoration: none;">${event.contact}</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Attach registration handler
+      const regBtn = document.getElementById('register-action-btn');
+      if (regBtn) {
+        regBtn.addEventListener('click', () => {
+          try {
+            registerForEvent(eventId, user.id);
+            showToast('Registration successful! Digital pass generated.', 'success', 3500);
+            renderEventDetails(eventId);
+          } catch (err) {
+            showToast(err.message || 'Registration failed.', 'error', 3500);
+          }
+        });
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

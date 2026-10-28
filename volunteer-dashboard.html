@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volunteer Panel - CampusFlow</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="layout-container">
+    <!-- Header -->
+    <div id="app-header"></div>
+    
+    <!-- Sidebar -->
+    <div id="app-sidebar"></div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <div class="flex-row-between mb-24 flex-wrap" style="gap: var(--space-16);">
+        <div>
+          <h2>Volunteer Check-in Desk</h2>
+          <p class="text-muted text-sm mt-4">Scan student QR tickets, verify attendee registration codes, and track venue admissions</p>
+        </div>
+        <button id="open-scanner-btn" class="btn btn-primary btn-sm">📷 Open Camera QR Scanner</button>
+      </div>
+
+      <div class="grid-2" style="grid-template-columns: 1fr 1.3fr; gap: var(--space-24);">
+        
+        <!-- Left Column: Check-in Actions & Quick Codes -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-20);">
+          
+          <!-- Manual Code Form Card -->
+          <div class="card">
+            <div class="flex-row-between mb-8">
+              <h3>Direct Pass Check-In</h3>
+              <span class="badge badge-primary text-xs">Gate Admission</span>
+            </div>
+            <p class="text-xs text-muted">Enter the 4 to 8 digit ticket code (e.g. <code>CF-TECH</code>) provided on the student's digital pass.</p>
+
+            <form id="checkin-form" class="mt-16" style="display: flex; flex-direction: column; gap: var(--space-12);">
+              <div>
+                <label for="reg-code-input">Registration Code</label>
+                <div class="input-with-icon">
+                  <span class="input-icon">🎟️</span>
+                  <input type="text" id="reg-code-input" required placeholder="e.g. CF-TECH" autocomplete="off" style="font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; padding: 12px 14px 12px 42px;">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary w-full" style="padding: 12px;">✓ Verify &amp; Confirm Attendance</button>
+            </form>
+
+            <!-- Quick Code Fill Pills (for testing or fast clicks) -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: var(--space-12); margin-top: var(--space-12);">
+              <span class="text-xs text-muted font-medium">Quick Demo Test Tickets:</span>
+              <div class="flex-gap-8 flex-wrap mt-8">
+                <button class="badge badge-default cursor-pointer test-code-chip" data-code="CF-TECH">CF-TECH (Hackfest)</button>
+                <button class="badge badge-default cursor-pointer test-code-chip" data-code="CF-PLAY">CF-PLAY (Basketball)</button>
+                <button class="badge badge-default cursor-pointer test-code-chip" data-code="CF-ABCD">CF-ABCD</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Activity Log Card -->
+          <div class="card">
+            <div class="flex-row-between mb-12">
+              <h3>Recent Gate Check-ins</h3>
+              <span class="badge badge-info text-xs" id="recent-count-badge">0 Checked In</span>
+            </div>
+            <div id="recent-checkins-list" style="display: flex; flex-direction: column; gap: var(--space-8); max-height: 280px; overflow-y: auto;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Today's Events & Attendance Count -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-20);">
+          <div class="card">
+            <div class="flex-row-between mb-16">
+              <h3>Active Events Attendance Roster</h3>
+              <span class="badge badge-success text-xs">Real-Time</span>
+            </div>
+            
+            <div id="active-events-list" style="display: flex; flex-direction: column; gap: var(--space-16);">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= CAMERA QR SCANNER MODAL ================= -->
+      <div id="scanner-modal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 440px; text-align: center;">
+          <div class="flex-row-between mb-16">
+            <h3>Camera QR Scanner</h3>
+            <button id="close-scanner-modal" class="btn-icon" style="border: none;">✕</button>
+          </div>
+          
+          <div class="scanner-viewfinder-box">
+            <video id="scanner-video" class="scanner-video" playsinline></video>
+            <div class="scanner-laser"></div>
+          </div>
+          
+          <p class="text-xs text-muted mt-12" id="scanner-status-text">
+            Align student's QR code within the frame to scan automatically.
+          </p>
+
+          <div class="flex-gap-12 mt-16">
+            <button id="stop-scanner-btn" class="btn btn-secondary btn-sm w-full">Close Camera</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module">
+    import { 
+      getCurrentUser, 
+      getEvents, 
+      getRegistrations, 
+      checkInParticipant,
+      undoCheckIn,
+      getEventById,
+      getUsers
+    } from './js/data.js';
+    import { showToast, showConfirm } from './js/layout.js';
+    import { startCameraScanner, stopCameraScanner } from './js/qr.js';
+
+    let currentUser = null;
+
+    function init() {
+      currentUser = getCurrentUser();
+      if (!currentUser || currentUser.role !== 'volunteer') {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      renderEventStats();
+      renderRecentCheckins();
+
+      // Form handler
+      document.getElementById('checkin-form').addEventListener('submit', handleManualCheckIn);
+
+      // Camera Scanner modal controls
+      document.getElementById('open-scanner-btn').addEventListener('click', openCameraScanner);
+      document.getElementById('close-scanner-modal').addEventListener('click', closeCameraScanner);
+      document.getElementById('stop-scanner-btn').addEventListener('click', closeCameraScanner);
+
+      // Test Code Chips
+      document.querySelectorAll('.test-code-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          document.getElementById('reg-code-input').value = chip.dataset.code;
+        });
+      });
+    }
+
+    function toggleModal(id, show) {
+      const modal = document.getElementById(id);
+      if (show) modal.classList.add('active');
+      else modal.classList.remove('active');
+    }
+
+    async function openCameraScanner() {
+      toggleModal('scanner-modal', true);
+      const videoEl = document.getElementById('scanner-video');
+      const statusEl = document.getElementById('scanner-status-text');
+
+      statusEl.textContent = 'Requesting camera access...';
+
+      const success = await startCameraScanner(
+        videoEl,
+        (detectedCode) => {
+          // Success Callback
+          showToast(`QR Code Detected: ${detectedCode}`, 'info', 2000);
+          closeCameraScanner();
+          processCheckIn(detectedCode);
+        },
+        (err) => {
+          statusEl.textContent = `Camera access error: ${err.message || 'Permission denied'}. Please enter code manually.`;
+        }
+      );
+
+      if (success) {
+        statusEl.textContent = 'Camera active. Point at student ticket QR code.';
+      }
+    }
+
+    function closeCameraScanner() {
+      stopCameraScanner();
+      toggleModal('scanner-modal', false);
+    }
+
+    function handleManualCheckIn(e) {
+      e.preventDefault();
+      const codeInput = document.getElementById('reg-code-input');
+      const code = codeInput.value.trim().toUpperCase();
+      if (!code) return;
+      processCheckIn(code);
+      codeInput.value = '';
+    }
+
+    function processCheckIn(code) {
+      try {
+        const reg = checkInParticipant(code);
+        const event = getEventById(reg.eventId);
+        const users = getUsers();
+        const student = users.find(u => u.id === reg.userId) || { name: 'Student' };
+
+        showToast(`✓ Check-In Confirmed for ${student.name} (${event ? event.title : 'Event'})`, 'success', 3500);
+
+        renderEventStats();
+        renderRecentCheckins();
+      } catch (err) {
+        showToast(err.message || 'Check-in failed.', 'error', 3500);
+      }
+    }
+
+    function renderRecentCheckins() {
+      const list = document.getElementById('recent-checkins-list');
+      list.innerHTML = '';
+      const regs = getRegistrations().filter(r => r.status === 'registered' && r.checkedIn);
+      const users = getUsers();
+      const events = getEvents();
+
+      // Sort by checked in timestamp if available, else reg date
+      regs.sort((a, b) => new Date(b.checkedInAt || b.registeredAt) - new Date(a.checkedInAt || a.registeredAt));
+
+      document.getElementById('recent-count-badge').textContent = `${regs.length} Total Admitted`;
+
+      if (regs.length === 0) {
+        list.innerHTML = `<p class="text-xs text-muted text-center" style="padding: var(--space-16);">No attendee check-ins recorded yet.</p>`;
+        return;
+      }
+
+      regs.slice(0, 6).forEach(r => {
+        const user = users.find(u => u.id === r.userId) || { name: 'Attendee' };
+        const event = events.find(e => e.id === r.eventId) || { title: 'Event' };
+
+        const item = document.createElement('div');
+        item.className = 'card';
+        item.style.padding = 'var(--space-8) var(--space-12)';
+        item.style.background = 'var(--bg-surface)';
+        item.innerHTML = `
+          <div class="flex-row-between">
+            <div>
+              <strong class="text-xs">${user.name}</strong>
+              <span class="text-xs text-muted" style="display: block;">${event.title} • <code style="color: var(--color-accent); font-weight: 700;">${r.registrationCode}</code></span>
+            </div>
+            <button class="btn btn-secondary btn-sm undo-btn" data-id="${r.id}" style="padding: 3px 8px; font-size: 11px;">Undo</button>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+
+      // Hook Undo Checkin
+      document.querySelectorAll('.undo-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const regId = btn.dataset.id;
+          showConfirm('Undo Check-In', 'Revert this attendee attendance status back to registered?', () => {
+            undoCheckIn(regId);
+            showToast('Check-in reverted', 'info', 2000);
+            renderEventStats();
+            renderRecentCheckins();
+          });
+        });
+      });
+    }
+
+    function renderEventStats() {
+      const listContainer = document.getElementById('active-events-list');
+      listContainer.innerHTML = '';
+
+      const events = getEvents();
+      const registrations = getRegistrations().filter(r => r.status === 'registered');
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      events.forEach(event => {
+        const eventRegs = registrations.filter(r => r.eventId === event.id);
+        const checkedInCount = eventRegs.filter(r => r.checkedIn).length;
+        const regCount = eventRegs.length;
+        const isToday = event.date === todayStr;
+
+        const percent = regCount > 0 ? Math.round((checkedInCount / regCount) * 100) : 0;
+
+        const cardHtml = `
+          <div class="card" style="padding: var(--space-16); background: var(--bg-surface);">
+            <div class="flex-row-between mb-8 flex-wrap" style="gap: var(--space-8);">
+              <div>
+                <strong>${event.title}</strong>
+                <div class="text-xs text-muted mt-2">📍 ${event.venue} • ⏰ ${event.time}</div>
+              </div>
+              ${isToday 
+                ? '<span class="badge badge-warning text-xs">Today</span>' 
+                : `<span class="badge badge-default text-xs">${event.date}</span>`}
+            </div>
+            
+            <div style="margin-top: var(--space-12); display: flex; justify-content: space-between; align-items: center;" class="text-xs">
+              <span class="text-muted">Admitted vs Registered:</span>
+              <strong style="color: var(--color-accent); font-size: 14px;">${checkedInCount} / ${regCount} (${percent}%)</strong>
+            </div>
+
+            <!-- Animated Progress Bar -->
+            <div style="width: 100%; height: 6px; background-color: var(--border-color); border-radius: 3px; margin-top: 8px; overflow: hidden;">
+              <div style="width: ${percent}%; height: 100%; background: var(--color-accent-gradient); transition: width 0.4s ease;"></div>
+            </div>
+          </div>
+        `;
+        listContainer.insertAdjacentHTML('beforeend', cardHtml);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
